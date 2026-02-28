@@ -1,0 +1,57 @@
+name: Test TestPyPI Wheel
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test/testpypi-wheel-validation
+
+permissions:
+  contents: read
+
+jobs:
+  test-testpypi-wheel:
+    name: Test zvec==0.2.1b0 from TestPyPI (Linux x64)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: false  # Only need test files
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install zvec from TestPyPI
+        run: |
+          pip install --upgrade pip
+          # Install numpy from PyPI first (not available on TestPyPI)
+          pip install numpy
+          # Install zvec from TestPyPI
+          pip install --index-url https://test.pypi.org/simple/ --no-deps zvec==0.2.1b0
+          # Verify installation
+          python -c "import zvec; print(f'✅ zvec {zvec.__version__} installed successfully')"
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-mock
+
+      - name: Run unit tests
+        run: |
+          cd python/tests
+          pytest -v --tb=short
+        env:
+          ZVEC_RUN_INTEGRATION_TESTS: "0"  # Skip integration tests that need models
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Test Results for zvec==0.2.1b0 on Linux x64" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Platform: \`linux-x64\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Python: \`$(python --version)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
