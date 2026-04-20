@@ -40,6 +40,11 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ inputs.platform }}
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -100,6 +105,8 @@ jobs:
           python -m pip install -v . \
             --no-build-isolation \
             --config-settings='cmake.define.BUILD_TOOLS="ON"' \
+            --config-settings='cmake.define.CMAKE_C_COMPILER_LAUNCHER="ccache"' \
+            --config-settings='cmake.define.CMAKE_CXX_COMPILER_LAUNCHER="ccache"' \
             ${{ matrix.arch_flag }}
         shell: bash
 
@@ -119,7 +126,9 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/examples/c++"
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           make -j $NPROC
           ./db-example
           ./core-example
@@ -130,7 +139,9 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/examples/c"
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
+          cmake .. -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           make -j $NPROC
           ./c_api_basic_example
           ./c_api_collection_schema_example
