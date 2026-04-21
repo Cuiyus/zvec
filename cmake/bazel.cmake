@@ -312,13 +312,6 @@ endif()
 # Enable unit testing
 enable_testing()
 
-# Detect the number of available processors for parallel test execution
-include(ProcessorCount)
-ProcessorCount(NPROC)
-if(NPROC EQUAL 0)
-  set(NPROC 1)
-endif()
-
 # Add unittest target
 if(NOT TARGET unittest)
   if(IOS)
@@ -327,7 +320,7 @@ if(NOT TARGET unittest)
   else()
     add_custom_target(
         unittest
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -j ${NPROC} --timeout 300
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
         --build-config $<CONFIGURATION>
       )
   endif()
