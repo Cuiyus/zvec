@@ -100,7 +100,7 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE"
 
-          CMAKE_GENERATOR="Unix Makefiles" \
+          CMAKE_GENERATOR="Ninja" \
           CMAKE_BUILD_PARALLEL_LEVEL="$NPROC" \
           python -m pip install -v . \
             --no-build-isolation \
@@ -113,7 +113,7 @@ jobs:
       - name: Run C++ Tests
         run: |
           cd "$GITHUB_WORKSPACE/build"
-          make unittest -j$NPROC
+          cmake --build . --target unittest --parallel $NPROC
         shell: bash
 
       - name: Run Python Tests
@@ -126,10 +126,10 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/examples/c++"
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release \
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          make -j $NPROC
+          cmake --build . --parallel $NPROC
           ./db-example
           ./core-example
           ./ailego-example
@@ -139,10 +139,10 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/examples/c"
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release \
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          make -j $NPROC
+          cmake --build . --parallel $NPROC
           ./c_api_basic_example
           ./c_api_collection_schema_example
           ./c_api_doc_example
