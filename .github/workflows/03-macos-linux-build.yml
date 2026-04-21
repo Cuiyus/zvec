@@ -104,9 +104,9 @@ jobs:
           CMAKE_BUILD_PARALLEL_LEVEL="$NPROC" \
           python -m pip install -v . \
             --no-build-isolation \
-            --config-settings='cmake.define.BUILD_TOOLS="ON"' \
-            --config-settings='cmake.define.CMAKE_C_COMPILER_LAUNCHER="ccache"' \
-            --config-settings='cmake.define.CMAKE_CXX_COMPILER_LAUNCHER="ccache"' \
+            --config-settings='cmake.define.BUILD_TOOLS=ON' \
+            --config-settings='cmake.define.CMAKE_C_COMPILER_LAUNCHER=ccache' \
+            --config-settings='cmake.define.CMAKE_CXX_COMPILER_LAUNCHER=ccache' \
             ${{ matrix.arch_flag }}
         shell: bash
 

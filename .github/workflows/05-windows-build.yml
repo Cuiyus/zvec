@@ -20,9 +20,6 @@ jobs:
           - platform: windows-2022
           - platform: windows-2025
 
-    env:
-      SCCACHE_GHA_ENABLED: 'true'
-
     steps:
       - name: Show env info
         run: |
@@ -53,9 +50,6 @@ jobs:
         with:
           arch: x64
 
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
-
       - name: Set up environment variables
         run: |
           $nproc = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
@@ -81,9 +75,7 @@ jobs:
           $env:CMAKE_BUILD_PARALLEL_LEVEL = "$env:NPROC"
           python -m pip install -v . `
             --no-build-isolation `
-            --config-settings='cmake.define.BUILD_TOOLS=ON' `
-            --config-settings='cmake.define.CMAKE_C_COMPILER_LAUNCHER=sccache' `
-            --config-settings='cmake.define.CMAKE_CXX_COMPILER_LAUNCHER=sccache'
+            --config-settings='cmake.define.BUILD_TOOLS=ON'
         shell: powershell
 
       - name: Run C++ Tests
@@ -103,16 +95,9 @@ jobs:
           cd "$env:GITHUB_WORKSPACE\examples\c++"
           mkdir build
           cd build
-          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
-            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release --parallel $env:NPROC
           .\db-example.exe
           .\core-example.exe
           .\ailego-example.exe
-        shell: powershell
-
-      - name: Show sccache statistics
-        if: always()
-        run: ${env:SCCACHE_PATH} --show-stats
         shell: powershell
