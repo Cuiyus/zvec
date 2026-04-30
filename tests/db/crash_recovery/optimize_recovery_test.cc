@@ -65,6 +65,12 @@ static std::string LocateOptimizeGenerator() {
   }
 #endif
 
+  const char *test_binary_dir = std::getenv("TEST_BINARY_DIR");
+  if (test_binary_dir != nullptr) {
+    candidates.push_back(std::string(test_binary_dir) + "/");
+    candidates.push_back(std::string(test_binary_dir) + "/bin/");
+  }
+
   for (auto &p : candidates) {
     p += base_name;
 #ifdef _WIN32
