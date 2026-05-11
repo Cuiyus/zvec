@@ -43,7 +43,7 @@ jobs:
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
-          key: ${{ inputs.platform }}-${{ inputs.os }}
+          key: ${{ inputs.platform }}-${{ inputs.os }}-${{ inputs.compiler || 'gcc' }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
