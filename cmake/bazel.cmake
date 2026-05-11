@@ -323,7 +323,10 @@ if(NOT TARGET unittest)
     if(NPROC EQUAL 0)
       set(NPROC 1)
     endif()
-    math(EXPR PARALLEL_JOBS "(${NPROC} + 1) / 2")
+    math(EXPR PARALLEL_JOBS "${NPROC} - 1")
+    if(PARALLEL_JOBS LESS 1)
+      set(PARALLEL_JOBS 1)
+    endif()
     add_custom_target(
         unittest
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
