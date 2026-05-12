@@ -29,11 +29,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-tidy=1:18.0-59~exp2 cmake ninja-build libomp-dev
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: clang-tidy
+          max-size: 100M
+
       - name: Configure CMake and export compile commands
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            -DBUILD_TOOLS=ON
+            -DBUILD_TOOLS=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Collect changed C/C++ files
         id: changed_files
