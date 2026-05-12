@@ -44,6 +44,7 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ inputs.platform }}-${{ inputs.os }}-${{ inputs.compiler || 'gcc' }}
+          max-size: 150M
 
       - name: Set up Python
         uses: actions/setup-python@v6
