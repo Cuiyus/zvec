@@ -111,10 +111,10 @@ class TestFtsQueryBinding:
         assert restored.match_string == ""
 
     def test_vector_query_fts_field(self):
-        """_VectorQuery should have fts field."""
-        from _zvec.param import _Fts, _VectorQuery
+        """_SearchQuery should have fts field."""
+        from _zvec.param import _Fts, _SearchQuery
 
-        vq = _VectorQuery()
+        vq = _SearchQuery()
         # fts should be None by default (optional)
         assert vq.fts is None
 
@@ -126,10 +126,10 @@ class TestFtsQueryBinding:
         assert vq.fts.query_string == "hello"
 
     def test_vector_query_pickle_with_fts(self):
-        """_VectorQuery with fts should survive pickling."""
-        from _zvec.param import _Fts, _VectorQuery
+        """_SearchQuery with fts should survive pickling."""
+        from _zvec.param import _Fts, _SearchQuery
 
-        vq = _VectorQuery()
+        vq = _SearchQuery()
         vq.topk = 10
         vq.field_name = "embedding"
         fts = _Fts()
@@ -144,10 +144,10 @@ class TestFtsQueryBinding:
         assert restored.fts.match_string == "test query"
 
     def test_vector_query_pickle_without_fts(self):
-        """_VectorQuery without fts should survive pickling."""
-        from _zvec.param import _VectorQuery
+        """_SearchQuery without fts should survive pickling."""
+        from _zvec.param import _SearchQuery
 
-        vq = _VectorQuery()
+        vq = _SearchQuery()
         vq.topk = 5
         vq.field_name = "vec"
 

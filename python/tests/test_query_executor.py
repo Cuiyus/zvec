@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import math
-from _zvec.param import _VectorQuery
+from _zvec.param import _SearchQuery
 
 import pytest
 from zvec.executor.query_executor import (
@@ -91,7 +91,7 @@ class TestQuery:
         assert query.has_vector()
 
     def test_validate_dense_fp16_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.VECTOR_FP16)
         vec = np.array([1.1, 2.1, 3.1], dtype=np.float16)
         v.set_vector(schema._get_object(), vec)
@@ -99,7 +99,7 @@ class TestQuery:
         assert np.array_equal(vec, ret)
 
     def test_validate_dense_fp32_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.VECTOR_FP32)
         vec = np.array([1.1, 2.1, 3.1], dtype=np.float32)
         v.set_vector(schema._get_object(), vec)
@@ -107,7 +107,7 @@ class TestQuery:
         assert np.array_equal(vec, ret)
 
     def test_validate_dense_fp64_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.VECTOR_FP64)
         vec = np.array([1.1, 2.1, 3.1], dtype=np.float64)
         v.set_vector(schema._get_object(), vec)
@@ -115,7 +115,7 @@ class TestQuery:
         assert np.array_equal(vec, ret)
 
     def test_validate_dense_int8_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.VECTOR_INT8)
         vec = np.array([1, 2, 3], dtype=np.int8)
         v.set_vector(schema._get_object(), vec)
@@ -123,7 +123,7 @@ class TestQuery:
         assert np.array_equal(vec, ret)
 
     def test_validate_sparse_fp32_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.SPARSE_VECTOR_FP32)
         vec = {1: 1.1, 2: 2.2, 3: 3.3}
         v.set_vector(schema._get_object(), vec)
@@ -132,7 +132,7 @@ class TestQuery:
             assert math.isclose(vec[k], ret[k], abs_tol=1e-6)
 
     def test_validate_sparse_fp16_convert(self):
-        v = _VectorQuery()
+        v = _SearchQuery()
         schema = VectorSchema(name="test", data_type=DataType.SPARSE_VECTOR_FP16)
         vec = {1: 1.1, 2: 2.2, 3: 3.3}
         v.set_vector(schema._get_object(), vec)

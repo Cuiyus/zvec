@@ -17,7 +17,7 @@ from typing import Optional, Union
 
 import numpy as np
 from _zvec import _Collection, _MultiQuery
-from _zvec.param import _Fts, _SubQuery, _VectorQuery
+from _zvec.param import _Fts, _SearchQuery, _SubQuery
 
 from ..extension import ReRanker
 from ..model.convert import convert_to_py_doc
@@ -108,7 +108,7 @@ class QueryContext:
         return self._core_vectors
 
     @core_vectors.setter
-    def core_vectors(self, core_vectors: list[_VectorQuery]):
+    def core_vectors(self, core_vectors: list[_SearchQuery]):
         self._core_vectors = core_vectors
 
 
@@ -118,7 +118,7 @@ class QueryExecutor:
     def __init__(self, schema: CollectionSchema):
         self._schema = schema
 
-    def _do_build(self, ctx: QueryContext, collection: _Collection) -> list[_VectorQuery]:
+    def _do_build(self, ctx: QueryContext, collection: _Collection) -> list[_SearchQuery]:
         """Build query vector list (no validation, conversion only)."""
         if not ctx.queries:
             return [self._do_build_query_wo_vector(ctx)]
@@ -146,7 +146,7 @@ class QueryExecutor:
 
         # C++ MultiQuery path (with or without reranker)
         mvq = _MultiQuery()
-        mvq.queries = [_SubQuery.from_vector_query(vq) for vq in query_vectors]
+        mvq.queries = [_SubQuery.from_search_query(vq) for vq in query_vectors]
         mvq.topk = ctx.topk
         if ctx.filter:
             mvq.filter = ctx.filter
@@ -159,7 +159,7 @@ class QueryExecutor:
         return [convert_to_py_doc(doc, self._schema) for doc in docs]
 
     def _execute_python_pipeline(
-        self, vectors: list[_VectorQuery], collection: _Collection
+        self, vectors: list[_SearchQuery], collection: _Collection
     ) -> list[QueryResult]:
         """Execute queries serially for Python-only reranker path."""
         results: list[QueryResult] = []
@@ -178,8 +178,8 @@ class QueryExecutor:
             return docs_list[0]
         return ctx.reranker.rerank(docs_list)
 
-    def _do_build_query_wo_vector(self, ctx: QueryContext) -> _VectorQuery:
-        core_vector = _VectorQuery()
+    def _do_build_query_wo_vector(self, ctx: QueryContext) -> _SearchQuery:
+        core_vector = _SearchQuery()
         core_vector.topk = ctx.topk
         core_vector.include_vector = ctx.include_vector
         if ctx.filter:
@@ -188,7 +188,7 @@ class QueryExecutor:
             core_vector.output_fields = ctx.output_fields
         return core_vector
 
-    def _do_build_fts_query(self, query: Query, core_vector: _VectorQuery) -> None:
+    def _do_build_fts_query(self, query: Query, core_vector: _SearchQuery) -> None:
         """Set FTS query on core_vector if the query has FTS parameters."""
         if query.has_fts():
             fts = _Fts()
@@ -198,7 +198,7 @@ class QueryExecutor:
 
     def _do_build_query_with_vector(
         self, ctx: QueryContext, query: Query, collection: _Collection
-    ) -> _VectorQuery:
+    ) -> _SearchQuery:
         core_vector = self._do_build_query_wo_vector(ctx)
         core_vector.field_name = query.field_name
         if query.param:
