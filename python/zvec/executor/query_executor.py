@@ -217,9 +217,6 @@ class QueryExecutor:
         # set FTS query if provided
         self._apply_fts(query, search_query)
 
-        # set output_fields
-        search_query.output_fields = ctx.output_fields
-
         vector_schema = None
         if query.has_vector() or query.has_id():
             vector_schema = (
