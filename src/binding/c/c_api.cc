@@ -5632,24 +5632,18 @@ zvec_reranker_t *zvec_reranker_create_rrf(int rank_constant) {
   return nullptr;
 }
 
-zvec_reranker_t *zvec_reranker_create_weighted(const char **fields,
-                                               const double *weights,
-                                               size_t field_count) {
-  if ((!fields || !weights) && field_count > 0) {
-    set_last_error(
-        "Fields and weights pointers cannot be null when field_count > 0");
+zvec_reranker_t *zvec_reranker_create_weighted(const double *weights,
+                                               size_t weight_count) {
+  if (!weights && weight_count > 0) {
+    set_last_error("Weights pointer cannot be null when weight_count > 0");
     return nullptr;
   }
 
   ZVEC_TRY_RETURN_NULL(
       "Failed to create Weighted Reranker",
       std::vector<double> weight_vec;
-      weight_vec.reserve(field_count);
-      for (size_t i = 0; i < field_count; ++i) {
-        if (!fields[i]) {
-          set_last_error("Null field name at index " + std::to_string(i));
-          return nullptr;
-        }
+      weight_vec.reserve(weight_count);
+      for (size_t i = 0; i < weight_count; ++i) {
         weight_vec.push_back(weights[i]);
       }
 

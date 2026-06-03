@@ -29,6 +29,10 @@ namespace zvec {
 
 Result<DocPtrList> ScoreBasedReranker::rerank(
     const std::vector<DocPtrList> &query_results, int topn) const {
+  if (topn <= 0) {
+    return DocPtrList();
+  }
+
   std::unordered_map<std::string, double> scores;
   std::unordered_map<std::string, Doc::Ptr> id_to_doc;
 
@@ -127,6 +131,10 @@ Result<double> WeightedReranker::normalize_score(double score,
 
 Result<double> WeightedReranker::rescore(double score, int /*rank*/,
                                          int query_index) const {
+  if (!schema_) {
+    return tl::make_unexpected(
+        Status::InvalidArgument("WeightedReranker: schema is null"));
+  }
   if (query_index < 0 ||
       static_cast<size_t>(query_index) >= field_names_.size()) {
     return tl::make_unexpected(

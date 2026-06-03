@@ -1965,13 +1965,12 @@ zvec_reranker_create_rrf(int rank_constant);
 
 /**
  * @brief Create a Weighted reranker
- * @param fields Array of field names
- * @param weights Array of weights corresponding to fields
- * @param field_count Number of field/weight entries
+ * @param weights Array of weights for each query
+ * @param weight_count Number of weight entries
  * @return zvec_reranker_t* Pointer to the newly created reranker
  */
-ZVEC_EXPORT zvec_reranker_t *ZVEC_CALL zvec_reranker_create_weighted(
-    const char **fields, const double *weights, size_t field_count);
+ZVEC_EXPORT zvec_reranker_t *ZVEC_CALL
+zvec_reranker_create_weighted(const double *weights, size_t weight_count);
 
 /**
  * @brief Destroy reranker

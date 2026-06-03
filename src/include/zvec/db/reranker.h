@@ -127,6 +127,10 @@ class CallbackReranker : public Reranker {
 
   Result<DocPtrList> rerank(const std::vector<DocPtrList> &query_results,
                             int topn = 10) const override {
+    if (!callback_) {
+      return tl::make_unexpected(
+          Status::InvalidArgument("CallbackReranker: callback is empty"));
+    }
     return callback_(query_results, topn);
   }
 

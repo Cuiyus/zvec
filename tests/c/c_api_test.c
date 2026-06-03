@@ -4386,17 +4386,16 @@ void test_reranker_functions(void) {
   }
 
   // Test 3: Create Weighted reranker
-  const char *fields[] = {"embedding1", "embedding2"};
   double weights[] = {0.7, 0.3};
-  zvec_reranker_t *weighted = zvec_reranker_create_weighted(fields, weights, 2);
+  zvec_reranker_t *weighted = zvec_reranker_create_weighted(weights, 2);
   TEST_ASSERT(weighted != NULL);
   if (weighted) {
     TEST_ASSERT(zvec_reranker_get_rank_constant(weighted) == -1);
     zvec_reranker_destroy(weighted);
   }
 
-  // Test 4: Create Weighted reranker with no fields
-  zvec_reranker_t *weighted2 = zvec_reranker_create_weighted(NULL, NULL, 0);
+  // Test 4: Create Weighted reranker with no weights
+  zvec_reranker_t *weighted2 = zvec_reranker_create_weighted(NULL, 0);
   TEST_ASSERT(weighted2 != NULL);
   if (weighted2) {
     zvec_reranker_destroy(weighted2);
@@ -4589,9 +4588,8 @@ void test_multi_vector_query_with_weighted_reranker(void) {
   TEST_ASSERT(
       setup_multi_query_fixture(&f, "zvec_test_mq_weighted", "mq_weighted"));
 
-  const char *fields[] = {"embedding1", "embedding2"};
   double weights[] = {0.7, 0.3};
-  zvec_reranker_t *weighted = zvec_reranker_create_weighted(fields, weights, 2);
+  zvec_reranker_t *weighted = zvec_reranker_create_weighted(weights, 2);
   TEST_ASSERT(weighted != NULL);
 
   int count = execute_multi_query_with_reranker(&f, weighted, 3, 3);
