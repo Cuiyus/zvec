@@ -22,7 +22,7 @@ from ..executor import QueryContext, QueryExecutorFactory
 from ..extension import ReRanker
 from ..typing import Status
 from .convert import convert_to_cpp_doc, convert_to_py_doc
-from .doc import Doc
+from .doc import Doc, QueryResult
 from .param import (
     AddColumnOption,
     AlterColumnOption,
@@ -381,7 +381,7 @@ class Collection:
         include_vector: bool = False,
         output_fields: Optional[list[str]] = None,
         reranker: Optional[ReRanker] = None,
-    ) -> list[Doc]:
+    ) -> QueryResult:
         """Perform vector similarity search with optional filtering and re-ranking.
 
         At least one `Query` must be provided via `queries`.
@@ -403,7 +403,7 @@ class Collection:
                 Defaults to None.
 
         Returns:
-            list[Doc]: Top-k matching documents, sorted by relevance score.
+            QueryResult: Top-k matching documents, sorted by relevance score.
 
         Examples:
             >>> from zvec import Query

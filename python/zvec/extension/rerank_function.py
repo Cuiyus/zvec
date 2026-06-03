@@ -16,7 +16,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from ..model.doc import Doc
+from ..model.doc import Doc, QueryResult
 
 
 class RerankFunction(ABC):
@@ -55,15 +55,16 @@ class RerankFunction(ABC):
         return self._rerank_field
 
     @abstractmethod
-    def rerank(self, query_results: dict[str, list[Doc]]) -> list[Doc]:
-        """Re-rank documents from one or more vector queries.
+    def rerank(self, query_results: list[QueryResult]) -> QueryResult:
+        """Re-rank documents from multi-route recall results.
 
         Args:
-            query_results (dict[str, list[Doc]]): Mapping from vector field name
-                to list of retrieved documents (sorted by relevance).
+            query_results (list[QueryResult]): List of query results from
+                multi-route recall. Each element corresponds to a Query in the
+                collection.query(queries=List[Query]) call, aligned by position.
 
         Returns:
-            list[Doc]: Re-ranked list of documents (length ≤ ``topn``),
+            QueryResult: Re-ranked list of documents (length ≤ ``topn``),
                 with updated ``score`` fields.
         """
         ...

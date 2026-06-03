@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..model.doc import Doc
+from ..model.doc import Doc, QueryResult
 from .qwen_function import QwenFunctionBase
 from .rerank_function import RerankFunction
 
@@ -93,26 +93,27 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
         """str: Query text used for semantic re-ranking."""
         return self._query
 
-    def rerank(self, query_results: dict[str, list[Doc]]) -> list[Doc]:
+    def rerank(self, query_results: list[QueryResult]) -> QueryResult:
         """Re-rank documents using Qwen's TextReRank API.
 
         Sends document texts to DashScope TextReRank service along with the query.
         Returns documents sorted by relevance scores from the cross-encoder model.
 
         Args:
-            query_results (dict[str, list[Doc]]): Mapping from vector field names
-                to lists of retrieved documents. Documents from all fields are
+            query_results (list[QueryResult]): Multi-route recall results,
+                positionally aligned with the queries supplied to
+                ``collection.query()``. Documents from all routes are
                 deduplicated and re-ranked together.
 
         Returns:
-            list[Doc]: Re-ranked documents (up to ``topn``) with updated ``score``
-                fields containing relevance scores from the API.
+            QueryResult: Re-ranked documents (up to ``topn``) with updated
+                ``score`` fields containing relevance scores from the API.
 
         Raises:
             ValueError: If no valid documents are found or API call fails.
 
         Note:
-            - Duplicate documents (same ID) across fields are processed once
+            - Duplicate documents (same ID) across routes are processed once
             - Documents with empty/missing ``rerank_field`` content are skipped
             - Returned scores are relevance scores from the cross-encoder model
         """
@@ -124,7 +125,7 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
         doc_ids: list[str] = []
         contents: list[str] = []
 
-        for _, query_result in query_results.items():
+        for query_result in query_results:
             for doc in query_result:
                 doc_id = doc.id
                 if doc_id in id_to_doc:

@@ -11,7 +11,7 @@ from .extension import ReRanker, RrfReRanker, WeightedReRanker
 from .extension.embedding import DenseEmbeddingFunction
 from .model import param, schema
 from .model.collection import Collection
-from .model.doc import Doc
+from .model.doc import Doc, QueryResult
 from .model.param import (
     AddColumnOption,
     AlterColumnOption,
@@ -71,6 +71,7 @@ __all__: list = [
     "OptimizeOption",
     "QuantizeType",
     "Query",
+    "QueryResult",
     "ReRanker",
     "ReRanker",
     "RrfReRanker",

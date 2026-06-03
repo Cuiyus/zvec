@@ -195,32 +195,32 @@ class QueryExecutor(ABC):
 
     def _do_execute(
         self, vectors: list[_VectorQuery], collection: _Collection
-    ) -> dict[str, list[Doc]]:
+    ) -> list[list[Doc]]:
         query_cnt = len(vectors)
         if query_cnt == 0:
             raise ValueError("No query to execute")
 
         if len(vectors) == 1 or self._concurrency == 1:
-            results = {}
+            results: list[list[Doc]] = []
             for query in vectors:
                 docs = collection.Query(query)
-                results[query.field_name] = [
-                    convert_to_py_doc(doc, self._schema) for doc in docs
-                ]
+                results.append(
+                    [convert_to_py_doc(doc, self._schema) for doc in docs]
+                )
             return results
 
-        results = {}
+        results = [None] * len(vectors)
         with ThreadPoolExecutor(max_workers=self._concurrency) as executor:
-            future_to_query = {
-                executor.submit(collection.Query, query): query.field_name
-                for query in vectors
+            future_to_index = {
+                executor.submit(collection.Query, query): i
+                for i, query in enumerate(vectors)
             }
 
-            for future in as_completed(future_to_query):
-                field_name = future_to_query[future]
+            for future in as_completed(future_to_index):
+                idx = future_to_index[future]
                 try:
                     docs = future.result()
-                    results[field_name] = [
+                    results[idx] = [
                         convert_to_py_doc(doc, self._schema) for doc in docs
                     ]
                 except Exception as e:
@@ -228,18 +228,18 @@ class QueryExecutor(ABC):
         return results
 
     def _do_merge_rerank_results(
-        self, ctx: QueryContext, docs_map: dict[str, list[Doc]]
+        self, ctx: QueryContext, docs_list: list[list[Doc]]
     ) -> list[Doc]:
-        query_result_cnt = len(docs_map) if docs_map else 0
+        query_result_cnt = len(docs_list) if docs_list else 0
         if query_result_cnt == 0:
             raise ValueError("Query results is none and dost not to rerank")
         if query_result_cnt == 1:
             if not ctx.reranker or isinstance(
                 ctx.reranker, (RrfReRanker, WeightedReRanker)
             ):
-                return next(iter(docs_map.values()))
-            return ctx.reranker.rerank(docs_map)
-        return ctx.reranker.rerank(docs_map)
+                return docs_list[0]
+            return ctx.reranker.rerank(docs_list)
+        return ctx.reranker.rerank(docs_list)
 
     @final
     def execute(self, ctx: QueryContext, collection: _Collection) -> list[Doc]:
@@ -344,6 +344,11 @@ class SingleVectorQueryExecutor(NoVectorQueryExecutor):
         docs = self._do_execute(query_vectors, collection)
         # 4. merge and rerank result
         return self._do_merge_rerank_results(ctx, docs)
+
+    def _do_execute(
+        self, vectors: list[_VectorQuery], collection: _Collection
+    ) -> list[list[Doc]]:
+        return super()._do_execute(vectors, collection)
 
 
 class MultiVectorQueryExecutor(SingleVectorQueryExecutor):

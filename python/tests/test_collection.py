@@ -1141,9 +1141,7 @@ class TestCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
         """Test multi-vector query with Weighted reranker on multiple dense vectors."""
-        metrics = {"dense": MetricType.IP, "dense2": MetricType.IP}
-        weights = {"dense": 0.6, "dense2": 0.4}
-        reranker = WeightedReRanker(topn=10, metrics=metrics, weights=weights)
+        reranker = WeightedReRanker(topn=10, weights=[0.6, 0.4])
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="dense", vector=multiple_docs[0].vector("dense")),
@@ -1159,9 +1157,7 @@ class TestCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
         """Test multi-vector query with Weighted reranker on multiple sparse vectors."""
-        metrics = {"sparse": MetricType.IP, "sparse2": MetricType.IP}
-        weights = {"sparse": 0.6, "sparse2": 0.4}
-        reranker = WeightedReRanker(topn=10, metrics=metrics, weights=weights)
+        reranker = WeightedReRanker(topn=10, weights=[0.6, 0.4])
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="sparse", vector=multiple_docs[0].vector("sparse")),
@@ -1180,9 +1176,7 @@ class TestCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
         """Test multi-vector query with Weighted reranker combining dense + sparse."""
-        metrics = {"dense": MetricType.IP, "sparse": MetricType.IP}
-        weights = {"dense": 0.7, "sparse": 0.3}
-        reranker = WeightedReRanker(topn=10, metrics=metrics, weights=weights)
+        reranker = WeightedReRanker(topn=10, weights=[0.7, 0.3])
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="dense", vector=multiple_docs[0].vector("dense")),
@@ -1203,7 +1197,7 @@ class TestCollectionQuery:
         def my_rerank_callback(query_results, topn):
             callback_invoked.append(True)
             all_docs = []
-            for docs in query_results.values():
+            for docs in query_results:
                 all_docs.extend(docs)
             seen = set()
             unique_docs = []
@@ -1234,7 +1228,7 @@ class TestCollectionQuery:
 
         def my_rerank_callback(query_results, topn):
             all_docs = []
-            for docs in query_results.values():
+            for docs in query_results:
                 all_docs.extend(docs)
             seen = set()
             unique_docs = []

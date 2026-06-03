@@ -216,8 +216,7 @@ class TestQueryContext:
         queries = [Query(field_name="test")]
         reranker = WeightedReRanker(
             topn=10,
-            metrics={"test": MetricType.L2},
-            weights={"test": 1.0},
+            weights=[1.0],
         )
 
         ctx = QueryContext(
@@ -227,8 +226,7 @@ class TestQueryContext:
         )
 
         assert ctx.reranker == reranker
-        assert ctx.reranker.weights == {"test": 1.0}
-        assert ctx.reranker.metrics == {"test": MetricType.L2}
+        assert ctx.reranker.weights == [1.0]
 
     def test_properties_with_callback_reranker(self):
         queries = [Query(field_name="test")]
@@ -344,8 +342,7 @@ class TestMultiVectorQueryExecutor:
         queries = [Query(field_name="test1"), Query(field_name="test2")]
         reranker = WeightedReRanker(
             topn=10,
-            metrics={"test1": MetricType.L2, "test2": MetricType.L2},
-            weights={"test1": 0.7, "test2": 0.3},
+            weights=[0.7, 0.3],
         )
         ctx = QueryContext(topk=10, queries=queries, reranker=reranker)
 

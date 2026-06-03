@@ -1743,7 +1743,14 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
     pending_queries.push_back({target.field_name_, std::move(sq)});
   }
 
-  std::map<std::string, DocPtrList> query_results;
+  std::vector<DocPtrList> query_results;
+  query_results.resize(pending_queries.size());
+
+  std::vector<std::string> field_names;
+  field_names.reserve(pending_queries.size());
+  for (const auto &pending : pending_queries) {
+    field_names.push_back(pending.field_name);
+  }
 
   auto execute_query = [&](PendingQuery &pending) -> Result<DocPtrList> {
     auto engine = sqlengine::SQLEngine::create(std::make_shared<Profiler>());
@@ -1771,12 +1778,11 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
     if (!results[i]) {
       return tl::make_unexpected(results[i].error());
     }
-    query_results[pending_queries[i].field_name] =
-        std::move(results[i].value());
+    query_results[i] = std::move(results[i].value());
   }
 
   // Merge and rerank results
-  query.reranker->bind_schema(schema_);
+  query.reranker->bind_schema(schema_, field_names);
   return query.reranker->rerank(query_results, query.topk);
 }
 

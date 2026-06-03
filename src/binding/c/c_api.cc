@@ -5643,17 +5643,18 @@ zvec_reranker_t *zvec_reranker_create_weighted(const char **fields,
 
   ZVEC_TRY_RETURN_NULL(
       "Failed to create Weighted Reranker",
-      std::map<std::string, double> weight_map;
+      std::vector<double> weight_vec;
+      weight_vec.reserve(field_count);
       for (size_t i = 0; i < field_count; ++i) {
         if (!fields[i]) {
           set_last_error("Null field name at index " + std::to_string(i));
           return nullptr;
         }
-        weight_map[fields[i]] = weights[i];
+        weight_vec.push_back(weights[i]);
       }
 
       auto *reranker = new zvec::Reranker::Ptr(
-          std::make_shared<zvec::WeightedReranker>(weight_map));
+          std::make_shared<zvec::WeightedReranker>(weight_vec));
       return reinterpret_cast<zvec_reranker_t *>(reranker);)
   return nullptr;
 }

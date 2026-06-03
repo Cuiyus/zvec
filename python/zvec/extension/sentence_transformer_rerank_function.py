@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from ..model.doc import Doc
+from ..model.doc import Doc, QueryResult
 from ..tool import require_module
 from .rerank_function import RerankFunction
 from .sentence_transformer_function import SentenceTransformerFunctionBase
@@ -143,12 +143,12 @@ class DefaultLocalReRanker(SentenceTransformerFunctionBase, RerankFunction):
         ... )
 
         >>> # Direct rerank call (for testing)
-        >>> query_results = {
-        ...     "vector1": [
+        >>> query_results = [
+        ...     [
         ...         Doc(id="1", score=0.9, fields={"content": "Machine learning is..."}),
         ...         Doc(id="2", score=0.8, fields={"content": "Deep learning is..."}),
         ...     ]
-        ... }
+        ... ]
         >>> reranked = reranker.rerank(query_results)
         >>> for doc in reranked:
         ...     print(f"ID: {doc.id}, Score: {doc.score:.4f}")
@@ -278,7 +278,7 @@ class DefaultLocalReRanker(SentenceTransformerFunctionBase, RerankFunction):
         """int: Batch size for processing query-document pairs."""
         return self._batch_size
 
-    def rerank(self, query_results: dict[str, list[Doc]]) -> list[Doc]:
+    def rerank(self, query_results: list[QueryResult]) -> QueryResult:
         """Re-rank documents using Sentence Transformer cross-encoder model.
 
         Evaluates each query-document pair using the cross-encoder model to compute
@@ -286,19 +286,21 @@ class DefaultLocalReRanker(SentenceTransformerFunctionBase, RerankFunction):
         results are returned.
 
         Args:
-            query_results (dict[str, list[Doc]]): Mapping from vector field names
-                to lists of retrieved documents. Documents from all fields are
+            query_results (list[QueryResult]): Multi-route recall results,
+                positionally aligned with the queries supplied to
+                ``collection.query()``. Documents from all routes are
                 deduplicated and re-ranked together.
 
         Returns:
-            list[Doc]: Re-ranked documents (up to ``topn``) with updated ``score``
-                fields containing relevance scores from the cross-encoder model.
+            QueryResult: Re-ranked documents (up to ``topn``) with updated
+                ``score`` fields containing relevance scores from the
+                cross-encoder model.
 
         Raises:
             ValueError: If no valid documents are found or model inference fails.
 
         Note:
-            - Duplicate documents (same ID) across fields are processed once
+            - Duplicate documents (same ID) across routes are processed once
             - Documents with empty/missing ``rerank_field`` content are skipped
             - Returned scores are logits from the cross-encoder model
             - Higher scores indicate higher relevance
@@ -310,12 +312,12 @@ class DefaultLocalReRanker(SentenceTransformerFunctionBase, RerankFunction):
             ...     topn=3,
             ...     rerank_field="content"
             ... )
-            >>> query_results = {
-            ...     "vector1": [
+            >>> query_results = [
+            ...     [
             ...         Doc(id="1", score=0.9, fields={"content": "ML basics"}),
             ...         Doc(id="2", score=0.8, fields={"content": "DL tutorial"}),
             ...     ]
-            ... }
+            ... ]
             >>> reranked = reranker.rerank(query_results)
             >>> len(reranked) <= 3
             True
@@ -328,7 +330,7 @@ class DefaultLocalReRanker(SentenceTransformerFunctionBase, RerankFunction):
         doc_ids: list[str] = []
         contents: list[str] = []
 
-        for _, query_result in query_results.items():
+        for query_result in query_results:
             for doc in query_result:
                 doc_id = doc.id
                 if doc_id in id_to_doc:
