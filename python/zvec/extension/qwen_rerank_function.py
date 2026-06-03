@@ -152,7 +152,7 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
         )
 
         # Build result list with updated scores
-        results: list[Doc] = []
+        results: QueryResult = []
         for item in output["results"]:
             idx = item["index"]
             doc_id = doc_ids[idx]

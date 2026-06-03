@@ -378,7 +378,7 @@ class DefaultLocalReRanker(SentenceTransformerFunctionBase, RerankFunction):
         top_scored_docs = scored_docs[: self.topn]
 
         # Build result list with updated scores
-        results: list[Doc] = []
+        results: QueryResult = []
         for _, doc, score in top_scored_docs:
             new_doc = doc._replace(score=score)
             results.append(new_doc)

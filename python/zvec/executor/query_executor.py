@@ -24,7 +24,7 @@ from _zvec.param import _Fts, _SubQuery, _VectorQuery
 
 from ..extension import ReRanker, RrfReRanker, WeightedReRanker
 from ..model.convert import convert_to_py_doc
-from ..model.doc import Doc
+from ..model.doc import Doc, QueryResult
 from ..model.param.query import Query
 from ..model.schema import CollectionSchema
 from ..typing import DataType
@@ -229,7 +229,7 @@ class QueryExecutor(ABC):
 
     def _do_merge_rerank_results(
         self, ctx: QueryContext, docs_list: list[list[Doc]]
-    ) -> list[Doc]:
+    ) -> QueryResult:
         query_result_cnt = len(docs_list) if docs_list else 0
         if query_result_cnt == 0:
             raise ValueError("Query results is none and dost not to rerank")
@@ -242,7 +242,7 @@ class QueryExecutor(ABC):
         return ctx.reranker.rerank(docs_list)
 
     @final
-    def execute(self, ctx: QueryContext, collection: _Collection) -> list[Doc]:
+    def execute(self, ctx: QueryContext, collection: _Collection) -> QueryResult:
         # 1. validate query
         self._do_validate(ctx)
         # 2. build query vector
@@ -316,7 +316,7 @@ class SingleVectorQueryExecutor(NoVectorQueryExecutor):
             vectors.append(self._do_build_query_with_vector(ctx, query, collection))
         return vectors
 
-    def execute(self, ctx: QueryContext, collection: _Collection) -> list[Doc]:
+    def execute(self, ctx: QueryContext, collection: _Collection) -> QueryResult:
         # 1. validate query
         self._do_validate(ctx)
         # 2. build query vectors
