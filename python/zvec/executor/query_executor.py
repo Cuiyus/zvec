@@ -24,7 +24,7 @@ from _zvec.param import _Fts, _SubQuery, _VectorQuery
 
 from ..extension import ReRanker, RrfReRanker, WeightedReRanker
 from ..model.convert import convert_to_py_doc
-from ..model.doc import Doc, QueryResult
+from ..model.doc import QueryResult
 from ..model.param.query import Query
 from ..model.schema import CollectionSchema
 from ..typing import DataType
@@ -195,13 +195,13 @@ class QueryExecutor(ABC):
 
     def _do_execute(
         self, vectors: list[_VectorQuery], collection: _Collection
-    ) -> list[list[Doc]]:
+    ) -> list[QueryResult]:
         query_cnt = len(vectors)
         if query_cnt == 0:
             raise ValueError("No query to execute")
 
         if len(vectors) == 1 or self._concurrency == 1:
-            results: list[list[Doc]] = []
+            results: list[QueryResult] = []
             for query in vectors:
                 docs = collection.Query(query)
                 results.append(
@@ -228,7 +228,7 @@ class QueryExecutor(ABC):
         return results
 
     def _do_merge_rerank_results(
-        self, ctx: QueryContext, docs_list: list[list[Doc]]
+        self, ctx: QueryContext, docs_list: list[QueryResult]
     ) -> QueryResult:
         query_result_cnt = len(docs_list) if docs_list else 0
         if query_result_cnt == 0:
@@ -347,7 +347,7 @@ class SingleVectorQueryExecutor(NoVectorQueryExecutor):
 
     def _do_execute(
         self, vectors: list[_VectorQuery], collection: _Collection
-    ) -> list[list[Doc]]:
+    ) -> list[QueryResult]:
         return super()._do_execute(vectors, collection)
 
 
