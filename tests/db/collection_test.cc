@@ -3936,9 +3936,8 @@ TEST_F(CollectionTest, Feature_MultiQuery_MultiFieldWeighted) {
 
   MultiQuery mvq;
   mvq.topk = 10;
-  std::map<std::string, double> weights = {{"dense_fp32", 0.7},
-                                           {"sparse_fp32", 0.3}};
-  mvq.reranker = std::make_shared<WeightedReranker>(weights);
+  mvq.reranker =
+      std::make_shared<WeightedReranker>(std::vector<double>{0.7, 0.3});
 
   // Query dense_fp32 field
   {
@@ -4090,11 +4089,11 @@ TEST_F(CollectionTest, Feature_MultiQuery_CallbackReranker) {
   // Use CallbackReranker with a lambda that merges and sorts by score
   bool callback_invoked = false;
   auto callback_fn = [&callback_invoked](
-                         const std::map<std::string, DocPtrList> &query_results,
+                         const std::vector<DocPtrList> &query_results,
                          int topn) -> DocPtrList {
     callback_invoked = true;
     DocPtrList all_docs;
-    for (const auto &[_, docs] : query_results) {
+    for (const auto &docs : query_results) {
       for (const auto &doc : docs) {
         all_docs.push_back(doc);
       }
