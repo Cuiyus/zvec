@@ -15,6 +15,7 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
@@ -71,9 +72,9 @@ TEST(RrfRerankerTest, BasicRRF) {
   // So a and b should have equal scores and be at the top
   ASSERT_GE(results.size(), 3u);
 
-  // "a" and "b" should have the highest RRF scores
-  EXPECT_EQ(results[0]->pk(), "a");
-  EXPECT_EQ(results[1]->pk(), "b");
+  // "a" and "b" should have the highest RRF scores (equal, order unspecified)
+  std::set<std::string> top2{results[0]->pk(), results[1]->pk()};
+  EXPECT_EQ(top2, (std::set<std::string>{"a", "b"}));
   // Verify scores are close (a and b have same RRF score)
   EXPECT_NEAR(results[0]->score(), results[1]->score(), 1e-10);
 }
