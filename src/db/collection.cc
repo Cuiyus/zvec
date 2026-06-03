@@ -1706,15 +1706,10 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
     return DocPtrList();
   }
 
-  struct PendingQuery {
-    std::string field_name;
-    SearchQuery query;
-  };
-
   // Convert each SubQuery to a SearchQuery and validate.
   std::set<std::string> seen_fields;
-  std::vector<PendingQuery> pending_queries;
-  pending_queries.reserve(query.queries.size());
+  std::vector<SearchQuery> search_queries;
+  search_queries.reserve(query.queries.size());
 
   for (const auto &sub : query.queries) {
     const auto &target = sub.target_;
@@ -1740,41 +1735,41 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
 
     auto s = sq.validate_and_sanitize(field_schema);
     CHECK_RETURN_STATUS_EXPECTED(s);
-    pending_queries.push_back({target.field_name_, std::move(sq)});
+    search_queries.push_back(std::move(sq));
   }
 
   std::vector<DocPtrList> query_results;
-  query_results.resize(pending_queries.size());
+  query_results.resize(search_queries.size());
 
   std::vector<std::string> field_names;
-  field_names.reserve(pending_queries.size());
-  for (const auto &pending : pending_queries) {
-    field_names.push_back(pending.field_name);
+  field_names.reserve(search_queries.size());
+  for (const auto &sq : search_queries) {
+    field_names.push_back(sq.target_.field_name_);
   }
 
-  auto execute_query = [&](PendingQuery &pending) -> Result<DocPtrList> {
+  auto execute_query = [&](SearchQuery &sq) -> Result<DocPtrList> {
     auto engine = sqlengine::SQLEngine::create(std::make_shared<Profiler>());
-    return engine->execute(schema_, std::move(pending.query), segments);
+    return engine->execute(schema_, std::move(sq), segments);
   };
 
-  std::vector<Result<DocPtrList>> results(pending_queries.size());
+  std::vector<Result<DocPtrList>> results(search_queries.size());
 
   // Single-segment queries have no segment-level fanout; multi-segment queries
   // already use the query pool per sub-query.
   if (segments.size() == 1) {
     auto group = GlobalResource::Instance().query_thread_pool()->make_group();
-    for (size_t i = 0; i < pending_queries.size(); ++i) {
+    for (size_t i = 0; i < search_queries.size(); ++i) {
       group->execute(
-          [&, i]() { results[i] = execute_query(pending_queries[i]); });
+          [&, i]() { results[i] = execute_query(search_queries[i]); });
     }
     group->wait_finish();
   } else {
-    for (size_t i = 0; i < pending_queries.size(); ++i) {
-      results[i] = execute_query(pending_queries[i]);
+    for (size_t i = 0; i < search_queries.size(); ++i) {
+      results[i] = execute_query(search_queries[i]);
     }
   }
 
-  for (size_t i = 0; i < pending_queries.size(); ++i) {
+  for (size_t i = 0; i < search_queries.size(); ++i) {
     if (!results[i]) {
       return tl::make_unexpected(results[i].error());
     }
