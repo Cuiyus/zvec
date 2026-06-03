@@ -107,7 +107,9 @@ class QueryExecutor:
     def __init__(self, schema: CollectionSchema):
         self._schema = schema
 
-    def _do_build(self, ctx: QueryContext, collection: _Collection) -> list[_SearchQuery]:
+    def _do_build(
+        self, ctx: QueryContext, collection: _Collection
+    ) -> list[_SearchQuery]:
         """Build query vector list (no validation, conversion only)."""
         if not ctx.queries:
             return [self._do_build_query_wo_vector(ctx)]

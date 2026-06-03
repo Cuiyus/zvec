@@ -1015,9 +1015,7 @@ class TestQueryResult:
         """WeightedReRanker.rerank() raises NotImplementedError."""
         reranker = WeightedReRanker(topn=5, weights=[0.7, 0.3])
         with pytest.raises(NotImplementedError):
-            reranker.rerank(
-                [[Doc(id="1", score=0.5)], [Doc(id="2", score=0.3)]]
-            )
+            reranker.rerank([[Doc(id="1", score=0.5)], [Doc(id="2", score=0.3)]])
 
     def test_single_route_query_results(self):
         """CallbackReRanker works with single-route (one element list)."""
