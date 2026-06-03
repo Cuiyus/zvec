@@ -170,7 +170,6 @@ class TestQueryContext:
         assert ctx.reranker is None
         assert ctx.output_fields is None
         assert ctx.include_vector is False
-        assert ctx.core_vectors == []
 
     def test_properties(self):
         queries = [Query(field_name="test")]
@@ -221,12 +220,6 @@ class TestQueryContext:
         )
 
         assert ctx.reranker == reranker
-
-    def test_core_vectors_setter(self):
-        ctx = QueryContext(topk=10)
-        core_vectors = [MagicMock()]
-        ctx.core_vectors = core_vectors
-        assert ctx.core_vectors == core_vectors
 
 
 class TestQueryExecutor:

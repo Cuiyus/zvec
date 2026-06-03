@@ -76,9 +76,6 @@ class QueryContext:
         # reranker
         self._reranker = reranker
 
-        # core vectors
-        self._core_vectors = []
-
     @property
     def topk(self):
         return self._topk
@@ -103,14 +100,6 @@ class QueryContext:
     def include_vector(self):
         return self._include_vector
 
-    @property
-    def core_vectors(self):
-        return self._core_vectors
-
-    @core_vectors.setter
-    def core_vectors(self, core_vectors: list[_SearchQuery]):
-        self._core_vectors = core_vectors
-
 
 class QueryExecutor:
     """Unified query executor that routes based on query count and reranker type."""
@@ -128,25 +117,50 @@ class QueryExecutor:
         ]
 
     def execute(self, ctx: QueryContext, collection: _Collection) -> QueryResult:
-        """Execute query, selecting path based on conditions."""
-        query_vectors = self._do_build(ctx, collection)
-        if not query_vectors:
+        """Execute a query, routing by query count.
+
+        A single (or vector-less) query is sent to C++ as a ``_SearchQuery``;
+        multiple queries are assembled into a ``_MultiQuery``.
+        """
+        queries = self._do_build(ctx, collection)
+        if not queries:
             raise ValueError("No query to execute")
 
-        # Single query: direct SearchQuery path
-        if len(query_vectors) == 1:
-            docs = collection.Query(query_vectors[0])
-            return [convert_to_py_doc(doc, self._schema) for doc in docs]
+        if len(queries) == 1:
+            return self._execute_single_query(queries[0], collection)
+        return self._execute_multi_query(ctx, queries, collection)
 
-        # Multiple queries
-        if ctx.reranker is not None and ctx.reranker._get_object() is None:
-            # Python-only reranker: serial execution + Python rerank
-            docs = self._execute_python_pipeline(query_vectors, collection)
-            return self._do_merge_rerank_results(ctx, docs)
+    def _execute_single_query(
+        self, query: _SearchQuery, collection: _Collection
+    ) -> QueryResult:
+        """Single/vector-less query: send a ``_SearchQuery`` to C++."""
+        docs = collection.Query(query)
+        return [convert_to_py_doc(doc, self._schema) for doc in docs]
 
-        # C++ MultiQuery path (with or without reranker)
+    def _execute_multi_query(
+        self, ctx: QueryContext, queries: list[_SearchQuery], collection: _Collection
+    ) -> QueryResult:
+        """Multiple queries: send a ``_MultiQuery`` to C++.
+
+        A Python-only reranker (``_get_object()`` returns None) cannot run
+        inside the C++ MultiQuery, so each route is executed individually and
+        merged by the reranker in Python.
+        """
+        reranker = ctx.reranker
+        if reranker is not None and reranker._get_object() is None:
+            docs_list = self._execute_python_pipeline(queries, collection)
+            return self._do_merge_rerank_results(ctx, docs_list)
+
+        mvq = self._build_multi_query(ctx, queries)
+        docs = collection.Query(mvq)
+        return [convert_to_py_doc(doc, self._schema) for doc in docs]
+
+    def _build_multi_query(
+        self, ctx: QueryContext, queries: list[_SearchQuery]
+    ) -> _MultiQuery:
+        """Assemble a C++ ``_MultiQuery`` from per-route ``_SearchQuery`` objects."""
         mvq = _MultiQuery()
-        mvq.queries = [_SubQuery.from_search_query(vq) for vq in query_vectors]
+        mvq.queries = [_SubQuery.from_search_query(query) for query in queries]
         mvq.topk = ctx.topk
         if ctx.filter:
             mvq.filter = ctx.filter
@@ -155,23 +169,18 @@ class QueryExecutor:
             mvq.output_fields = ctx.output_fields
         if ctx.reranker is not None:
             mvq.reranker = ctx.reranker._get_object()
-        docs = collection.Query(mvq)
-        return [convert_to_py_doc(doc, self._schema) for doc in docs]
+        return mvq
 
     def _execute_python_pipeline(
         self, vectors: list[_SearchQuery], collection: _Collection
     ) -> list[QueryResult]:
-        """Execute queries serially for Python-only reranker path."""
-        results: list[QueryResult] = []
-        for query in vectors:
-            docs = collection.Query(query)
-            results.append([convert_to_py_doc(doc, self._schema) for doc in docs])
-        return results
+        """Execute queries serially for the Python-only reranker path."""
+        return [self._execute_single_query(query, collection) for query in vectors]
 
     def _do_merge_rerank_results(
         self, ctx: QueryContext, docs_list: list[QueryResult]
     ) -> QueryResult:
-        """Merge and rerank results from Python pipeline path."""
+        """Merge and rerank results from the Python pipeline path."""
         if not docs_list:
             raise ValueError("Query results is empty")
         if len(docs_list) == 1 and not ctx.reranker:
@@ -179,36 +188,36 @@ class QueryExecutor:
         return ctx.reranker.rerank(docs_list)
 
     def _do_build_query_wo_vector(self, ctx: QueryContext) -> _SearchQuery:
-        core_vector = _SearchQuery()
-        core_vector.topk = ctx.topk
-        core_vector.include_vector = ctx.include_vector
+        search_query = _SearchQuery()
+        search_query.topk = ctx.topk
+        search_query.include_vector = ctx.include_vector
         if ctx.filter:
-            core_vector.filter = ctx.filter
+            search_query.filter = ctx.filter
         if ctx.output_fields:
-            core_vector.output_fields = ctx.output_fields
-        return core_vector
+            search_query.output_fields = ctx.output_fields
+        return search_query
 
-    def _do_build_fts_query(self, query: Query, core_vector: _SearchQuery) -> None:
-        """Set FTS query on core_vector if the query has FTS parameters."""
+    def _do_build_fts_query(self, query: Query, search_query: _SearchQuery) -> None:
+        """Set FTS query on search_query if the query has FTS parameters."""
         if query.has_fts():
             fts = _Fts()
             fts.query_string = query.fts.query_string or ""
             fts.match_string = query.fts.match_string or ""
-            core_vector.fts = fts
+            search_query.fts = fts
 
     def _do_build_query_with_vector(
         self, ctx: QueryContext, query: Query, collection: _Collection
     ) -> _SearchQuery:
-        core_vector = self._do_build_query_wo_vector(ctx)
-        core_vector.field_name = query.field_name
+        search_query = self._do_build_query_wo_vector(ctx)
+        search_query.field_name = query.field_name
         if query.param:
-            core_vector.query_params = query.param
+            search_query.query_params = query.param
 
         # set FTS query if provided
-        self._do_build_fts_query(query, core_vector)
+        self._do_build_fts_query(query, search_query)
 
         # set output_fields
-        core_vector.output_fields = ctx.output_fields
+        search_query.output_fields = ctx.output_fields
 
         vector_schema = None
         if query.has_vector() or query.has_id():
@@ -228,14 +237,14 @@ class QueryExecutor:
             fetched = collection.Fetch([query.id])
             doc = next(iter(fetched.values()))
             if not doc:
-                return core_vector
+                return search_query
             vec_data = doc.get_any(vector_schema.name, vector_schema.data_type)
         else:
-            return core_vector
+            return search_query
 
         target_dtype = DTYPE_MAP.get(vector_schema.data_type.value)
-        core_vector.set_vector(
+        search_query.set_vector(
             vector_schema._get_object(),
             convert_to_numpy(vec_data, target_dtype) if target_dtype else vec_data,
         )
-        return core_vector
+        return search_query
