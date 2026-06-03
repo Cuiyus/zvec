@@ -16,7 +16,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from ..model.doc import Doc, QueryResult
+from ..model.doc import QueryResult
 
 
 class RerankFunction(ABC):
