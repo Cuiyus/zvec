@@ -41,8 +41,7 @@ class Reranker {
   //! \param topn Maximum number of documents to return.
   //! \return Re-ranked list of documents (length <= topn), with updated scores.
   virtual Result<DocPtrList> rerank(
-      const std::vector<DocPtrList> &query_results,
-      int topn = 10) const = 0;
+      const std::vector<DocPtrList> &query_results, int topn = 10) const = 0;
 };
 
 //! Intermediate base for rerankers that compute per-document scores.
@@ -52,9 +51,8 @@ class Reranker {
 //! Subclasses only need to implement rescore().
 class ScoreBasedReranker : public Reranker {
  public:
-  Result<DocPtrList> rerank(
-      const std::vector<DocPtrList> &query_results,
-      int topn = 10) const override;
+  Result<DocPtrList> rerank(const std::vector<DocPtrList> &query_results,
+                            int topn = 10) const override;
 
  private:
   //! Compute the contribution score for a single document.
@@ -127,9 +125,8 @@ class CallbackReranker : public Reranker {
 
   explicit CallbackReranker(Callback fn) : callback_(std::move(fn)) {}
 
-  Result<DocPtrList> rerank(
-      const std::vector<DocPtrList> &query_results,
-      int topn = 10) const override {
+  Result<DocPtrList> rerank(const std::vector<DocPtrList> &query_results,
+                            int topn = 10) const override {
     return callback_(query_results, topn);
   }
 
