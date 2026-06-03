@@ -20,7 +20,7 @@ from ..common import VectorType
 
 __all__ = [
     "Doc",
-    "QueryResult",
+    "DocList",
 ]
 
 
@@ -174,5 +174,5 @@ class Doc:
         return obj
 
 
-QueryResult = list[Doc]
-"""Type alias for query results: a list of documents returned by a single query route."""
+#: Type alias for query results: a list of documents returned by a single query route.
+DocList = list[Doc]

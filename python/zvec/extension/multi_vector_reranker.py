@@ -18,7 +18,7 @@ from typing import Optional
 
 from _zvec import _CallbackReranker, _RrfReranker, _WeightedReranker
 
-from ..model.doc import QueryResult
+from ..model.doc import DocList
 from .rerank_function import RerankFunction
 
 
@@ -57,15 +57,15 @@ class RrfReRanker(RerankFunction):
         """Return the underlying C++ RrfReranker instance."""
         return self._cpp_reranker
 
-    def rerank(self, query_results: list[QueryResult]) -> QueryResult:
+    def rerank(self, query_results: list[DocList]) -> DocList:
         """Re-rank using C++ RRF implementation.
 
         Args:
-            query_results (list[QueryResult]): Multi-route recall results,
+            query_results (list[DocList]): Multi-route recall results,
                 positionally aligned with queries.
 
         Returns:
-            QueryResult: Re-ranked documents.
+            DocList: Re-ranked documents.
         """
         return self._cpp_reranker.rerank(query_results, self.topn)
 
@@ -103,15 +103,15 @@ class WeightedReRanker(RerankFunction):
         """Return the underlying C++ WeightedReranker instance."""
         return self._cpp_reranker
 
-    def rerank(self, query_results: list[QueryResult]) -> QueryResult:
+    def rerank(self, query_results: list[DocList]) -> DocList:
         """Re-rank using C++ Weighted implementation.
 
         Args:
-            query_results (list[QueryResult]): Multi-route recall results,
+            query_results (list[DocList]): Multi-route recall results,
                 positionally aligned with queries.
 
         Returns:
-            QueryResult: Re-ranked documents.
+            DocList: Re-ranked documents.
         """
         return self._cpp_reranker.rerank(query_results, self.topn)
 
@@ -144,14 +144,14 @@ class CallbackReRanker(RerankFunction):
         """Return the underlying C++ CallbackReranker instance."""
         return self._cpp_reranker
 
-    def rerank(self, query_results: list[QueryResult]) -> QueryResult:
+    def rerank(self, query_results: list[DocList]) -> DocList:
         """Invoke the callback to re-rank documents.
 
         Args:
-            query_results (list[QueryResult]): Multi-route recall results,
+            query_results (list[DocList]): Multi-route recall results,
                 positionally aligned with queries.
 
         Returns:
-            QueryResult: Re-ranked documents.
+            DocList: Re-ranked documents.
         """
         return self._callback(query_results, self.topn)

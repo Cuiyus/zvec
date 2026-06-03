@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..model.doc import Doc, QueryResult
+from ..model.doc import Doc, DocList
 from .qwen_function import QwenFunctionBase
 from .rerank_function import RerankFunction
 
@@ -93,20 +93,20 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
         """str: Query text used for semantic re-ranking."""
         return self._query
 
-    def rerank(self, query_results: list[QueryResult]) -> QueryResult:
+    def rerank(self, query_results: list[DocList]) -> DocList:
         """Re-rank documents using Qwen's TextReRank API.
 
         Sends document texts to DashScope TextReRank service along with the query.
         Returns documents sorted by relevance scores from the cross-encoder model.
 
         Args:
-            query_results (list[QueryResult]): Multi-route recall results,
+            query_results (list[DocList]): Multi-route recall results,
                 positionally aligned with the queries supplied to
                 ``collection.query()``. Documents from all routes are
                 deduplicated and re-ranked together.
 
         Returns:
-            QueryResult: Re-ranked documents (up to ``topn``) with updated
+            DocList: Re-ranked documents (up to ``topn``) with updated
                 ``score`` fields containing relevance scores from the API.
 
         Raises:
@@ -152,7 +152,7 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
         )
 
         # Build result list with updated scores
-        results: QueryResult = []
+        results: DocList = []
         for item in output["results"]:
             idx = item["index"]
             doc_id = doc_ids[idx]

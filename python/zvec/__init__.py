@@ -71,7 +71,7 @@ from .model import schema as schema
 
 # —— Core data structures ——
 from .model.collection import Collection
-from .model.doc import Doc, QueryResult
+from .model.doc import Doc, DocList
 
 # —— Query & index parameters ——
 # —— FTS params (C++ binding) ——
@@ -127,7 +127,7 @@ __all__ = [
     # Core classes
     "Collection",
     "Doc",
-    "QueryResult",
+    "DocList",
     # Schema
     "CollectionSchema",
     "FieldSchema",

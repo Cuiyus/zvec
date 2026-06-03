@@ -21,7 +21,7 @@ from _zvec.param import _Fts, _SearchQuery, _SubQuery
 
 from ..extension import ReRanker
 from ..model.convert import convert_to_py_doc
-from ..model.doc import QueryResult
+from ..model.doc import DocList
 from ..model.param.query import Query
 from ..model.schema import CollectionSchema
 from ..typing import DataType
@@ -117,7 +117,7 @@ class QueryExecutor:
             self._build_search_query(ctx, query, collection) for query in ctx.queries
         ]
 
-    def execute(self, ctx: QueryContext, collection: _Collection) -> QueryResult:
+    def execute(self, ctx: QueryContext, collection: _Collection) -> DocList:
         """Execute a query, routing by query count.
 
         A single (or vector-less) query is sent to C++ as a ``_SearchQuery``;
@@ -133,14 +133,14 @@ class QueryExecutor:
 
     def _execute_single_query(
         self, query: _SearchQuery, collection: _Collection
-    ) -> QueryResult:
+    ) -> DocList:
         """Single/vector-less query: send a ``_SearchQuery`` to C++."""
         docs = collection.Query(query)
         return [convert_to_py_doc(doc, self._schema) for doc in docs]
 
     def _execute_multi_query(
         self, ctx: QueryContext, queries: list[_SearchQuery], collection: _Collection
-    ) -> QueryResult:
+    ) -> DocList:
         """Multiple queries: send a ``_MultiQuery`` to C++.
 
         A Python-only reranker (``_get_object()`` returns None) cannot run
@@ -166,7 +166,7 @@ class QueryExecutor:
         if ctx.filter:
             multi_query.filter = ctx.filter
         multi_query.include_vector = ctx.include_vector
-        if ctx.output_fields:
+        if ctx.output_fields is not None:
             multi_query.output_fields = ctx.output_fields
         if ctx.reranker is not None:
             multi_query.reranker = ctx.reranker._get_object()
@@ -174,13 +174,13 @@ class QueryExecutor:
 
     def _execute_python_pipeline(
         self, vectors: list[_SearchQuery], collection: _Collection
-    ) -> list[QueryResult]:
+    ) -> list[DocList]:
         """Execute queries serially for the Python-only reranker path."""
         return [self._execute_single_query(query, collection) for query in vectors]
 
     def _merge_and_rerank(
-        self, ctx: QueryContext, docs_list: list[QueryResult]
-    ) -> QueryResult:
+        self, ctx: QueryContext, docs_list: list[DocList]
+    ) -> DocList:
         """Merge and rerank results from the Python pipeline path."""
         if not docs_list:
             raise ValueError("Query results is empty")
@@ -194,7 +194,7 @@ class QueryExecutor:
         search_query.include_vector = ctx.include_vector
         if ctx.filter:
             search_query.filter = ctx.filter
-        if ctx.output_fields:
+        if ctx.output_fields is not None:
             search_query.output_fields = ctx.output_fields
         return search_query
 
@@ -238,7 +238,7 @@ class QueryExecutor:
             fetched = collection.Fetch([query.id])
             doc = next(iter(fetched.values()))
             if not doc:
-                return search_query
+                raise ValueError(f"Document with id '{query.id}' not found")
             vec_data = doc.get_any(vector_schema.name, vector_schema.data_type)
         else:
             return search_query

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from ..model.doc import Doc, QueryResult
+from ..model.doc import Doc, DocList
 from ..tool import require_module
 from .rerank_function import RerankFunction
 from .sentence_transformer_function import SentenceTransformerFunctionBase
@@ -278,7 +278,7 @@ class DefaultLocalReRanker(SentenceTransformerFunctionBase, RerankFunction):
         """int: Batch size for processing query-document pairs."""
         return self._batch_size
 
-    def rerank(self, query_results: list[QueryResult]) -> QueryResult:
+    def rerank(self, query_results: list[DocList]) -> DocList:
         """Re-rank documents using Sentence Transformer cross-encoder model.
 
         Evaluates each query-document pair using the cross-encoder model to compute
@@ -286,13 +286,13 @@ class DefaultLocalReRanker(SentenceTransformerFunctionBase, RerankFunction):
         results are returned.
 
         Args:
-            query_results (list[QueryResult]): Multi-route recall results,
+            query_results (list[DocList]): Multi-route recall results,
                 positionally aligned with the queries supplied to
                 ``collection.query()``. Documents from all routes are
                 deduplicated and re-ranked together.
 
         Returns:
-            QueryResult: Re-ranked documents (up to ``topn``) with updated
+            DocList: Re-ranked documents (up to ``topn``) with updated
                 ``score`` fields containing relevance scores from the
                 cross-encoder model.
 
@@ -378,7 +378,7 @@ class DefaultLocalReRanker(SentenceTransformerFunctionBase, RerankFunction):
         top_scored_docs = scored_docs[: self.topn]
 
         # Build result list with updated scores
-        results: QueryResult = []
+        results: DocList = []
         for _, doc, score in top_scored_docs:
             new_doc = doc._replace(score=score)
             results.append(new_doc)

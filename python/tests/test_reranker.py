@@ -994,15 +994,15 @@ class TestDefaultLocalReRanker:
 
 
 # ----------------------------
-# QueryResult Type and Delegation Tests
+# DocList Type and Delegation Tests
 # ----------------------------
-class TestQueryResult:
+class TestDocList:
     def test_type_alias(self):
-        """QueryResult is list[Doc]."""
-        from zvec.model.doc import QueryResult
-        from zvec import Doc, QueryResult as QR
+        """DocList is list[Doc]."""
+        from zvec.model.doc import DocList
+        from zvec import Doc, DocList as QR
 
-        assert QueryResult == list[Doc]
+        assert DocList == list[Doc]
         assert QR == list[Doc]
 
     def test_rrf_reranker_delegates_to_cpp(self):
