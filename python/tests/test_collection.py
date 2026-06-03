@@ -976,18 +976,6 @@ class TestCollectionQuery:
         result = collection_with_multiple_docs.query(filter="id in (1)", topk=100)
         assert len(result) == 1
 
-    def test_collection_query_with_vector_and_id(
-        self, collection_with_single_doc: Collection, single_doc: Doc
-    ):
-        with pytest.raises(ValueError):
-            collection_with_single_doc.query(
-                Query(
-                    field_name="dense",
-                    id=single_doc.id,
-                    vector=single_doc.vector("dense"),
-                )
-            )
-
     def test_collection_query_with_filter_not_in(
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
@@ -1012,30 +1000,6 @@ class TestCollectionQuery:
             Query(field_name="dense", id=multiple_docs[0].id)
         )
         assert len(result) == 10
-
-    def test_collection_query_multi_vector_with_same_field(
-        self, collection_with_multiple_docs: Collection, multiple_docs
-    ):
-        # Multi-vector query on same field without reranker should raise ValueError
-        with pytest.raises(ValueError, match="Reranker is required"):
-            collection_with_multiple_docs.query(
-                [
-                    Query(field_name="dense", vector=multiple_docs[0].vector("dense")),
-                    Query(field_name="dense", vector=multiple_docs[1].vector("dense")),
-                ]
-            )
-
-        # Same field name with reranker should also raise ValueError
-        reranker = RrfReRanker(topn=10, rank_constant=60)
-        with pytest.raises(ValueError, match="appears more than once"):
-            collection_with_multiple_docs.query(
-                [
-                    Query(field_name="dense", vector=multiple_docs[0].vector("dense")),
-                    Query(field_name="dense", vector=multiple_docs[1].vector("dense")),
-                ],
-                topk=10,
-                reranker=reranker,
-            )
 
     def test_collection_query_by_dense_vector(
         self, collection_with_multiple_docs: Collection, multiple_docs

@@ -18,7 +18,7 @@ from typing import Optional, Union, overload
 
 from _zvec import _Collection
 
-from ..executor import QueryContext, QueryExecutorFactory
+from ..executor import QueryContext, QueryExecutor
 from ..extension import ReRanker
 from ..typing import Status
 from .convert import convert_to_cpp_doc, convert_to_py_doc
@@ -63,7 +63,7 @@ class Collection:
         inst._obj = core_collection
         schema = CollectionSchema._from_core(core_collection.Schema())
         inst._schema = schema
-        inst._querier = QueryExecutorFactory.create(schema)
+        inst._querier = QueryExecutor(schema)
         return inst
 
     @property

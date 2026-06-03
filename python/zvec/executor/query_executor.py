@@ -13,16 +13,13 @@
 # limitations under the License.
 from __future__ import annotations
 
-import os
-from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional, Union, final
+from typing import Optional, Union
 
 import numpy as np
 from _zvec import _Collection, _MultiQuery
 from _zvec.param import _Fts, _SubQuery, _VectorQuery
 
-from ..extension import ReRanker, RrfReRanker, WeightedReRanker
+from ..extension import ReRanker
 from ..model.convert import convert_to_py_doc
 from ..model.doc import QueryResult
 from ..model.param.query import Query
@@ -32,7 +29,6 @@ from ..typing import DataType
 __all__ = [
     "QueryContext",
     "QueryExecutor",
-    "QueryExecutorFactory",
 ]
 
 DTYPE_MAP = {
@@ -116,20 +112,71 @@ class QueryContext:
         self._core_vectors = core_vectors
 
 
-class QueryExecutor(ABC):
+class QueryExecutor:
+    """Unified query executor that routes based on query count and reranker type."""
+
     def __init__(self, schema: CollectionSchema):
         self._schema = schema
-        self._concurrency = max(1, int(os.getenv("ZVEC_QUERY_CONCURRENCY", "1")))
 
-    @abstractmethod
-    def _do_validate(self, ctx: QueryContext) -> None:
-        pass
+    def _do_build(self, ctx: QueryContext, collection: _Collection) -> list[_VectorQuery]:
+        """Build query vector list (no validation, conversion only)."""
+        if not ctx.queries:
+            return [self._do_build_query_wo_vector(ctx)]
+        return [
+            self._do_build_query_with_vector(ctx, query, collection)
+            for query in ctx.queries
+        ]
 
-    @abstractmethod
-    def _do_build(
-        self, ctx: QueryContext, collection: _Collection
-    ) -> list[_VectorQuery]:
-        pass
+    def execute(self, ctx: QueryContext, collection: _Collection) -> QueryResult:
+        """Execute query, selecting path based on conditions."""
+        query_vectors = self._do_build(ctx, collection)
+        if not query_vectors:
+            raise ValueError("No query to execute")
+
+        # Single query: direct SearchQuery path
+        if len(query_vectors) == 1:
+            docs = collection.Query(query_vectors[0])
+            return [convert_to_py_doc(doc, self._schema) for doc in docs]
+
+        # Multiple queries
+        if ctx.reranker is not None and ctx.reranker._get_object() is None:
+            # Python-only reranker: serial execution + Python rerank
+            docs = self._execute_python_pipeline(query_vectors, collection)
+            return self._do_merge_rerank_results(ctx, docs)
+
+        # C++ MultiQuery path (with or without reranker)
+        mvq = _MultiQuery()
+        mvq.queries = [_SubQuery.from_vector_query(vq) for vq in query_vectors]
+        mvq.topk = ctx.topk
+        if ctx.filter:
+            mvq.filter = ctx.filter
+        mvq.include_vector = ctx.include_vector
+        if ctx.output_fields:
+            mvq.output_fields = ctx.output_fields
+        if ctx.reranker is not None:
+            mvq.reranker = ctx.reranker._get_object()
+        docs = collection.Query(mvq)
+        return [convert_to_py_doc(doc, self._schema) for doc in docs]
+
+    def _execute_python_pipeline(
+        self, vectors: list[_VectorQuery], collection: _Collection
+    ) -> list[QueryResult]:
+        """Execute queries serially for Python-only reranker path."""
+        results: list[QueryResult] = []
+        for query in vectors:
+            docs = collection.Query(query)
+            results.append([convert_to_py_doc(doc, self._schema) for doc in docs])
+        return results
+
+    def _do_merge_rerank_results(
+        self, ctx: QueryContext, docs_list: list[QueryResult]
+    ) -> QueryResult:
+        """Merge and rerank results from Python pipeline path."""
+        if not docs_list:
+            raise ValueError("Query results is empty")
+        if len(docs_list) == 1 and not ctx.reranker:
+            return docs_list[0]
+        return ctx.reranker.rerank(docs_list)
 
     def _do_build_query_wo_vector(self, ctx: QueryContext) -> _VectorQuery:
         core_vector = _VectorQuery()
@@ -192,182 +239,3 @@ class QueryExecutor(ABC):
             convert_to_numpy(vec_data, target_dtype) if target_dtype else vec_data,
         )
         return core_vector
-
-    def _do_execute(
-        self, vectors: list[_VectorQuery], collection: _Collection
-    ) -> list[QueryResult]:
-        query_cnt = len(vectors)
-        if query_cnt == 0:
-            raise ValueError("No query to execute")
-
-        if len(vectors) == 1 or self._concurrency == 1:
-            results: list[QueryResult] = []
-            for query in vectors:
-                docs = collection.Query(query)
-                results.append(
-                    [convert_to_py_doc(doc, self._schema) for doc in docs]
-                )
-            return results
-
-        results = [None] * len(vectors)
-        with ThreadPoolExecutor(max_workers=self._concurrency) as executor:
-            future_to_index = {
-                executor.submit(collection.Query, query): i
-                for i, query in enumerate(vectors)
-            }
-
-            for future in as_completed(future_to_index):
-                idx = future_to_index[future]
-                try:
-                    docs = future.result()
-                    results[idx] = [
-                        convert_to_py_doc(doc, self._schema) for doc in docs
-                    ]
-                except Exception as e:
-                    raise e
-        return results
-
-    def _do_merge_rerank_results(
-        self, ctx: QueryContext, docs_list: list[QueryResult]
-    ) -> QueryResult:
-        query_result_cnt = len(docs_list) if docs_list else 0
-        if query_result_cnt == 0:
-            raise ValueError("Query results is none and dost not to rerank")
-        if query_result_cnt == 1 and (
-            not ctx.reranker
-            or isinstance(ctx.reranker, (RrfReRanker, WeightedReRanker))
-        ):
-            return docs_list[0]
-        return ctx.reranker.rerank(docs_list)
-
-    @final
-    def execute(self, ctx: QueryContext, collection: _Collection) -> QueryResult:
-        # 1. validate query
-        self._do_validate(ctx)
-        # 2. build query vector
-        query_vectors = self._do_build(ctx, collection)
-        if not query_vectors:
-            raise ValueError("No query to execute")
-        # 3. execute query
-        docs = self._do_execute(query_vectors, collection)
-        # 4. merge and rerank result
-        return self._do_merge_rerank_results(ctx, docs)
-
-
-class NoVectorQueryExecutor(QueryExecutor):
-    def __init__(self, schema: CollectionSchema):
-        super().__init__(schema)
-
-    def _do_validate(self, ctx: QueryContext) -> None:
-        for query in ctx.queries:
-            if query.has_vector() or query.has_id():
-                raise ValueError("Collection does not support query with vector or id")
-            query._validate()
-
-    def _do_build(
-        self, ctx: QueryContext, collection: _Collection
-    ) -> list[_VectorQuery]:
-        if len(ctx.queries) == 0:
-            return [self._do_build_query_wo_vector(ctx)]
-        # FTS-only branch in _do_build_query_with_vector skips vector resolution.
-        return [
-            self._do_build_query_with_vector(ctx, query, collection)
-            for query in ctx.queries
-        ]
-
-
-class SingleVectorQueryExecutor(NoVectorQueryExecutor):
-    def __init__(self, schema: CollectionSchema) -> None:
-        super().__init__(schema)
-
-    def _validate_multi_query(self, ctx: QueryContext) -> None:
-        """Shared validation for multi-query: reranker required + no duplicate fields."""
-        if ctx.reranker is None:
-            raise ValueError("Reranker is required for multi-query")
-        seen_fields = set()
-        for query in ctx.queries:
-            query._validate()
-            if query.field_name in seen_fields:
-                raise ValueError(
-                    f"Query field name '{query.field_name}' appears more than once"
-                )
-            seen_fields.add(query.field_name)
-
-    def _do_validate(self, ctx: QueryContext) -> None:
-        if len(ctx.queries) > 1:
-            # Allow FTS + vector hybrid multi-query (requires reranker)
-            if not any(q.has_fts() for q in ctx.queries):
-                raise ValueError(
-                    "Collection has only one vector field, cannot query with multiple vectors"
-                )
-            self._validate_multi_query(ctx)
-            return
-        for query in ctx.queries:
-            query._validate()
-
-    def _do_build(
-        self, ctx: QueryContext, collection: _Collection
-    ) -> list[_VectorQuery]:
-        if len(ctx.queries) == 0:
-            return [self._do_build_query_wo_vector(ctx)]
-        vectors = []
-        for query in ctx.queries:
-            vectors.append(self._do_build_query_with_vector(ctx, query, collection))
-        return vectors
-
-    def execute(self, ctx: QueryContext, collection: _Collection) -> QueryResult:
-        # 1. validate query
-        self._do_validate(ctx)
-        # 2. build query vectors
-        query_vectors = self._do_build(ctx, collection)
-        if not query_vectors:
-            raise ValueError("No query to execute")
-
-        # Multi-query fast path: route FTS + vector hybrid to C++ MultiQuery
-        if len(query_vectors) > 1 and ctx.reranker is not None:
-            cpp_reranker = ctx.reranker._get_object()
-            if cpp_reranker is not None:
-                mvq = _MultiQuery()
-                mvq.queries = [_SubQuery.from_vector_query(vq) for vq in query_vectors]
-                mvq.topk = ctx.topk
-                if ctx.filter:
-                    mvq.filter = ctx.filter
-                mvq.include_vector = ctx.include_vector
-                if ctx.output_fields:
-                    mvq.output_fields = ctx.output_fields
-                mvq.reranker = cpp_reranker
-                docs = collection.Query(mvq)
-                return [convert_to_py_doc(doc, self._schema) for doc in docs]
-
-        # 3. execute query
-        docs = self._do_execute(query_vectors, collection)
-        # 4. merge and rerank result
-        return self._do_merge_rerank_results(ctx, docs)
-
-    def _do_execute(
-        self, vectors: list[_VectorQuery], collection: _Collection
-    ) -> list[QueryResult]:
-        return super()._do_execute(vectors, collection)
-
-
-class MultiVectorQueryExecutor(SingleVectorQueryExecutor):
-    def __init__(self, schema: CollectionSchema) -> None:
-        super().__init__(schema)
-
-    def _do_validate(self, ctx: QueryContext) -> None:
-        if len(ctx.queries) > 1:
-            self._validate_multi_query(ctx)
-            return
-        for query in ctx.queries:
-            query._validate()
-
-
-class QueryExecutorFactory:
-    @staticmethod
-    def create(schema: CollectionSchema) -> QueryExecutor:
-        vectors = schema.vectors
-        if len(vectors) == 0:
-            return NoVectorQueryExecutor(schema)
-        if len(vectors) == 1:
-            return SingleVectorQueryExecutor(schema)
-        return MultiVectorQueryExecutor(schema)
