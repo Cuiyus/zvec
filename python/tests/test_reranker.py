@@ -42,8 +42,8 @@ class TestRrfReRanker:
         assert reranker.rerank_field == "content"
         assert reranker.rank_constant == 100
 
-    def test_rerank_raises_not_implemented(self):
-        """RrfReRanker delegates rerank to C++; Python rerank() raises."""
+    def test_rerank_delegates_to_cpp(self):
+        """RrfReRanker.rerank() delegates to C++ (raises TypeError with Python Docs)."""
         reranker = RrfReRanker(topn=3)
 
         doc1 = Doc(id="1", score=0.8)
@@ -53,7 +53,7 @@ class TestRrfReRanker:
 
         query_results = [[doc1, doc2, doc3], [doc3, doc1, doc4]]
 
-        with pytest.raises(NotImplementedError):
+        with pytest.raises((TypeError, RuntimeError)):
             reranker.rerank(query_results)
 
     def test_get_object_returns_cpp_reranker(self):
@@ -77,8 +77,8 @@ class TestWeightedReRanker:
         assert reranker.rerank_field == "content"
         assert list(reranker.weights) == weights
 
-    def test_rerank_raises_not_implemented(self):
-        """WeightedReRanker delegates rerank to C++; Python rerank() raises."""
+    def test_rerank_delegates_to_cpp(self):
+        """WeightedReRanker.rerank() delegates to C++ (raises TypeError with Python Docs)."""
         weights = [0.7, 0.3]
         reranker = WeightedReRanker(topn=3, weights=weights)
 
@@ -88,7 +88,7 @@ class TestWeightedReRanker:
 
         query_results = [[doc1, doc2], [doc2, doc3]]
 
-        with pytest.raises(NotImplementedError):
+        with pytest.raises((TypeError, RuntimeError)):
             reranker.rerank(query_results)
 
     def test_get_object_returns_cpp_reranker(self):
