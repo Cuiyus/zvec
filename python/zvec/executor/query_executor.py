@@ -178,9 +178,7 @@ class QueryExecutor:
         """Execute queries serially for the Python-only reranker path."""
         return [self._execute_single_query(query, collection) for query in vectors]
 
-    def _merge_and_rerank(
-        self, ctx: QueryContext, docs_list: list[DocList]
-    ) -> DocList:
+    def _merge_and_rerank(self, ctx: QueryContext, docs_list: list[DocList]) -> DocList:
         """Merge and rerank results from the Python pipeline path."""
         if not docs_list:
             raise ValueError("Query results is empty")
