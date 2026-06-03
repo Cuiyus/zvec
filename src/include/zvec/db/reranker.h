@@ -52,6 +52,11 @@ class Reranker {
 //! Subclasses only need to implement rescore().
 class ScoreBasedReranker : public Reranker {
  public:
+  Result<DocPtrList> rerank(
+      const std::vector<DocPtrList> &query_results,
+      int topn = 10) const override;
+
+ private:
   //! Compute the contribution score for a single document.
   //! \param score The document's raw relevance score from the vector query.
   //! \param rank The document's position (0-based) in the per-query result
@@ -60,10 +65,6 @@ class ScoreBasedReranker : public Reranker {
   //! document.
   virtual Result<double> rescore(double score, int rank,
                                  int query_index) const = 0;
-
-  Result<DocPtrList> rerank(
-      const std::vector<DocPtrList> &query_results,
-      int topn = 10) const override;
 };
 
 //! Re-ranker using Reciprocal Rank Fusion (RRF) for multi-vector search.
@@ -81,10 +82,10 @@ class RrfReranker : public ScoreBasedReranker {
     return rank_constant_;
   }
 
+ private:
   Result<double> rescore(double score, int rank,
                          int query_index) const override;
 
- private:
   int rank_constant_;
 };
 
@@ -104,10 +105,10 @@ class WeightedReranker : public ScoreBasedReranker {
     return weights_;
   }
 
+ private:
   Result<double> rescore(double score, int rank,
                          int query_index) const override;
 
- private:
   static Result<double> normalize_score(double score, const FieldSchema &field);
 
   CollectionSchema::Ptr schema_;
