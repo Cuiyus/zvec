@@ -1766,7 +1766,10 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
     query_results.push_back(std::move(result.value()));
   }
 
-  query.reranker->bind_schema(schema_, field_names);
+  auto bind_result = query.reranker->bind_schema(schema_, field_names);
+  if (!bind_result.has_value()) {
+    return tl::make_unexpected(bind_result.error());
+  }
   return query.reranker->rerank(query_results, query.topk);
 }
 

@@ -32,8 +32,11 @@ class Reranker {
   Reranker() = default;
   virtual ~Reranker() = default;
 
-  virtual void bind_schema(CollectionSchema::Ptr /*schema*/,
-                           const std::vector<std::string> & /*field_names*/) {}
+  virtual Result<void> bind_schema(
+      CollectionSchema::Ptr /*schema*/,
+      const std::vector<std::string> & /*field_names*/) {
+    return {};
+  }
 
   //! Re-rank documents from one or more vector queries.
   //! \param query_results Per-query lists of retrieved documents (sorted by
@@ -96,8 +99,9 @@ class WeightedReranker : public ScoreBasedReranker {
  public:
   explicit WeightedReranker(const std::vector<double> &weights = {});
 
-  void bind_schema(CollectionSchema::Ptr schema,
-                   const std::vector<std::string> &field_names) override;
+  Result<void> bind_schema(
+      CollectionSchema::Ptr schema,
+      const std::vector<std::string> &field_names) override;
 
   const std::vector<double> &weights() const {
     return weights_;
@@ -109,8 +113,7 @@ class WeightedReranker : public ScoreBasedReranker {
 
   static Result<double> normalize_score(double score, const FieldSchema &field);
 
-  CollectionSchema::Ptr schema_;
-  std::vector<std::string> field_names_;
+  std::vector<const FieldSchema *> field_schemas_;
   std::vector<double> weights_;
 };
 

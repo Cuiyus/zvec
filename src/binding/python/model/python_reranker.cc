@@ -36,12 +36,11 @@ inline void reranker_throw_if_error(const Status &status) {
   }
 }
 
-inline DocPtrList unwrap_rerank_result(const Result<DocPtrList> &result) {
-  if (result.has_value()) {
-    return result.value();
+inline DocPtrList unwrap_rerank_result(Result<DocPtrList> result) {
+  if (!result.has_value()) {
+    reranker_throw_if_error(result.error());
   }
-  reranker_throw_if_error(result.error());
-  return DocPtrList{};
+  return std::move(result).value();
 }
 
 }  // namespace

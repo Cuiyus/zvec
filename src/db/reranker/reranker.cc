@@ -95,10 +95,19 @@ Result<double> RrfReranker::rescore(double /*score*/, int rank,
 WeightedReranker::WeightedReranker(const std::vector<double> &weights)
     : weights_(weights) {}
 
-void WeightedReranker::bind_schema(
+Result<void> WeightedReranker::bind_schema(
     CollectionSchema::Ptr schema, const std::vector<std::string> &field_names) {
-  schema_ = std::move(schema);
-  field_names_ = field_names;
+  field_schemas_.clear();
+  field_schemas_.reserve(field_names.size());
+  for (const auto &name : field_names) {
+    const auto *field = schema->get_vector_field(name);
+    if (!field) {
+      return tl::make_unexpected(Status::InvalidArgument(
+          "WeightedReranker: vector field not found: '", name + "'"));
+    }
+    field_schemas_.push_back(field);
+  }
+  return {};
 }
 
 Result<double> WeightedReranker::normalize_score(double score,
@@ -131,23 +140,13 @@ Result<double> WeightedReranker::normalize_score(double score,
 
 Result<double> WeightedReranker::rescore(double score, int /*rank*/,
                                          int query_index) const {
-  if (!schema_) {
-    return tl::make_unexpected(
-        Status::InvalidArgument("WeightedReranker: schema is null"));
-  }
   if (query_index < 0 ||
-      static_cast<size_t>(query_index) >= field_names_.size()) {
+      static_cast<size_t>(query_index) >= field_schemas_.size()) {
     return tl::make_unexpected(
         Status::InvalidArgument("WeightedReranker: query_index out of range: ",
                                 std::to_string(query_index)));
   }
-  const auto &field_name = field_names_[query_index];
-  const auto *field = schema_->get_vector_field(field_name);
-  if (!field) {
-    return tl::make_unexpected(Status::InvalidArgument(
-        "WeightedReranker: field not found: '", field_name + "'"));
-  }
-  auto normalized = normalize_score(score, *field);
+  auto normalized = normalize_score(score, *field_schemas_[query_index]);
   if (!normalized.has_value()) {
     return tl::make_unexpected(normalized.error());
   }

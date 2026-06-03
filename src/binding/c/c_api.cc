@@ -5622,7 +5622,7 @@ zvec_error_code_t zvec_group_by_vector_query_set_flat_params(
 // Reranker Implementation
 // =============================================================================
 
-zvec_reranker_t *zvec_reranker_create_rrf(int rank_constant) {
+zvec_reranker_t *zvec_create_rrf_reranker(int rank_constant) {
   ZVEC_TRY_RETURN_NULL("Failed to create RRF Reranker",
                        auto *reranker =
                            new zvec::Reranker::Ptr(
@@ -5632,7 +5632,7 @@ zvec_reranker_t *zvec_reranker_create_rrf(int rank_constant) {
   return nullptr;
 }
 
-zvec_reranker_t *zvec_reranker_create_weighted(const double *weights,
+zvec_reranker_t *zvec_create_weighted_reranker(const double *weights,
                                                size_t weight_count) {
   if (!weights && weight_count > 0) {
     set_last_error("Weights pointer cannot be null when weight_count > 0");
@@ -5641,25 +5641,20 @@ zvec_reranker_t *zvec_reranker_create_weighted(const double *weights,
 
   ZVEC_TRY_RETURN_NULL(
       "Failed to create Weighted Reranker",
-      std::vector<double> weight_vec;
-      weight_vec.reserve(weight_count);
-      for (size_t i = 0; i < weight_count; ++i) {
-        weight_vec.push_back(weights[i]);
-      }
-
       auto *reranker = new zvec::Reranker::Ptr(
-          std::make_shared<zvec::WeightedReranker>(weight_vec));
+          std::make_shared<zvec::WeightedReranker>(
+              std::vector<double>(weights, weights + weight_count)));
       return reinterpret_cast<zvec_reranker_t *>(reranker);)
   return nullptr;
 }
 
-void zvec_reranker_destroy(zvec_reranker_t *reranker) {
+void zvec_destroy_reranker(zvec_reranker_t *reranker) {
   if (reranker) {
     delete reinterpret_cast<zvec::Reranker::Ptr *>(reranker);
   }
 }
 
-int zvec_reranker_get_rank_constant(const zvec_reranker_t *reranker) {
+int zvec_get_reranker_rank_constant(const zvec_reranker_t *reranker) {
   if (!reranker) return -1;
   auto *ptr = reinterpret_cast<const zvec::Reranker::Ptr *>(reranker);
   auto *rrf = dynamic_cast<const zvec::RrfReranker *>(ptr->get());

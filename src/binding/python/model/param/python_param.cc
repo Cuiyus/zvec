@@ -1545,7 +1545,7 @@ void ZVecPyParams::bind_vector_query(py::module_ &m) {
             sub.target_ = sq.target_;
             return sub;
           },
-          py::arg("vector_query"),
+          py::arg("search_query"),
           "Create a SubQuery from a single-target search query.");
 
   // _SearchQuery is the Python class name; it wraps the
