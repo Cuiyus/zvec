@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "python_reranker.h"
+#include <stdexcept>
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
-#include <stdexcept>
 #include <zvec/db/collection.h>
 #include <zvec/db/type.h>
 
@@ -36,8 +36,7 @@ inline void reranker_throw_if_error(const Status &status) {
   }
 }
 
-inline DocPtrList unwrap_rerank_result(
-    const Result<DocPtrList> &result) {
+inline DocPtrList unwrap_rerank_result(const Result<DocPtrList> &result) {
   if (result.has_value()) {
     return result.value();
   }
@@ -52,8 +51,8 @@ void ZVecPyReranker::Initialize(py::module_ &m) {
   py::class_<Reranker, Reranker::Ptr>(m, "_Reranker")
       .def(
           "rerank",
-          [](const Reranker &self,
-             const std::vector<DocPtrList> &query_results, int topn) {
+          [](const Reranker &self, const std::vector<DocPtrList> &query_results,
+             int topn) {
             return unwrap_rerank_result(self.rerank(query_results, topn));
           },
           py::arg("query_results"), py::arg("topn") = 10);

@@ -39,8 +39,7 @@ Result<DocPtrList> ScoreBasedReranker::rerank(
       const auto &doc = docs[rank];
       const std::string &doc_id = doc->pk();
       auto rs = rescore(static_cast<double>(doc->score()),
-                        static_cast<int>(rank),
-                        static_cast<int>(query_index));
+                        static_cast<int>(rank), static_cast<int>(query_index));
       if (!rs.has_value()) {
         return tl::make_unexpected(rs.error());
       }
@@ -93,8 +92,7 @@ WeightedReranker::WeightedReranker(const std::vector<double> &weights)
     : weights_(weights) {}
 
 void WeightedReranker::bind_schema(
-    CollectionSchema::Ptr schema,
-    const std::vector<std::string> &field_names) {
+    CollectionSchema::Ptr schema, const std::vector<std::string> &field_names) {
   schema_ = std::move(schema);
   field_names_ = field_names;
 }
@@ -131,9 +129,9 @@ Result<double> WeightedReranker::rescore(double score, int /*rank*/,
                                          int query_index) const {
   if (query_index < 0 ||
       static_cast<size_t>(query_index) >= field_names_.size()) {
-    return tl::make_unexpected(Status::InvalidArgument(
-        "WeightedReranker: query_index out of range: ",
-        std::to_string(query_index)));
+    return tl::make_unexpected(
+        Status::InvalidArgument("WeightedReranker: query_index out of range: ",
+                                std::to_string(query_index)));
   }
   const auto &field_name = field_names_[query_index];
   const auto *field = schema_->get_vector_field(field_name);

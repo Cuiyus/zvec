@@ -247,8 +247,7 @@ TEST(CallbackRerankerTest, BasicCallback) {
   // Simple callback that returns docs sorted by score descending, limited to
   // topn
   CallbackReranker::Callback cb =
-      [](const std::vector<DocPtrList> &query_results,
-         int topn) -> DocPtrList {
+      [](const std::vector<DocPtrList> &query_results, int topn) -> DocPtrList {
     DocPtrList all_docs;
     for (const auto &docs : query_results) {
       for (const auto &doc : docs) {
