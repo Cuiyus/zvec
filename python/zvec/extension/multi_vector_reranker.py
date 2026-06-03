@@ -31,11 +31,6 @@ class RrfReRanker(RerankFunction):
     The RRF score for a document at rank ``r`` is: ``1 / (k + r + 1)``,
     where ``k`` is the rank constant.
 
-    Note:
-        Re-ranking is delegated to the C++ implementation via the
-        ``MultiVectorQueryExecutor`` fast path. The Python ``rerank()`` method
-        is not intended to be invoked directly.
-
     Args:
         topn (int, optional): Number of top documents to return. Defaults to 10.
         rerank_field (Optional[str], optional): Ignored by RRF. Defaults to None.
@@ -63,15 +58,16 @@ class RrfReRanker(RerankFunction):
         return self._cpp_reranker
 
     def rerank(self, query_results: list[QueryResult]) -> QueryResult:
-        """RRF re-ranking is handled by the C++ implementation.
+        """Re-rank using C++ RRF implementation.
 
-        This method should not be called directly. The C++ fast path in
-        ``MultiVectorQueryExecutor`` handles RRF re-ranking automatically.
+        Args:
+            query_results (list[QueryResult]): Multi-route recall results,
+                positionally aligned with queries.
+
+        Returns:
+            QueryResult: Re-ranked documents.
         """
-        raise NotImplementedError(
-            "RrfReRanker delegates re-ranking to C++. "
-            "Use collection.query() with multiple queries."
-        )
+        return self._cpp_reranker.rerank(query_results, self.topn)
 
 
 class WeightedReRanker(RerankFunction):
@@ -80,11 +76,6 @@ class WeightedReRanker(RerankFunction):
     Each vector field's relevance score is normalized based on its own metric
     type, then scaled by a user-provided weight. Final scores are summed across
     fields. The actual re-ranking logic lives in the C++ implementation.
-
-    Note:
-        Re-ranking is delegated to the C++ implementation via the
-        ``MultiVectorQueryExecutor`` fast path. The Python ``rerank()`` method
-        is not intended to be invoked directly.
 
     Args:
         topn (int, optional): Number of top documents to return. Defaults to 10.
@@ -113,15 +104,16 @@ class WeightedReRanker(RerankFunction):
         return self._cpp_reranker
 
     def rerank(self, query_results: list[QueryResult]) -> QueryResult:
-        """Weighted re-ranking is handled by the C++ implementation.
+        """Re-rank using C++ Weighted implementation.
 
-        This method should not be called directly. The C++ fast path in
-        ``MultiVectorQueryExecutor`` handles weighted re-ranking automatically.
+        Args:
+            query_results (list[QueryResult]): Multi-route recall results,
+                positionally aligned with queries.
+
+        Returns:
+            QueryResult: Re-ranked documents.
         """
-        raise NotImplementedError(
-            "WeightedReRanker delegates re-ranking to C++. "
-            "Use collection.query() with multiple queries."
-        )
+        return self._cpp_reranker.rerank(query_results, self.topn)
 
 
 class CallbackReRanker(RerankFunction):
