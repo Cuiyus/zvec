@@ -233,12 +233,11 @@ class QueryExecutor(ABC):
         query_result_cnt = len(docs_list) if docs_list else 0
         if query_result_cnt == 0:
             raise ValueError("Query results is none and dost not to rerank")
-        if query_result_cnt == 1:
-            if not ctx.reranker or isinstance(
-                ctx.reranker, (RrfReRanker, WeightedReRanker)
-            ):
-                return docs_list[0]
-            return ctx.reranker.rerank(docs_list)
+        if query_result_cnt == 1 and (
+            not ctx.reranker
+            or isinstance(ctx.reranker, (RrfReRanker, WeightedReRanker))
+        ):
+            return docs_list[0]
         return ctx.reranker.rerank(docs_list)
 
     @final
