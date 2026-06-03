@@ -1715,8 +1715,8 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
     const auto &target = sub.target_;
     auto *field_schema = schema_->get_vector_field(target.field_name_);
     if (!field_schema) {
-      return tl::make_unexpected(
-          Status::InvalidArgument("Field not found: ", target.field_name_));
+      return tl::make_unexpected(Status::InvalidArgument(
+          "Invalid query: field '", target.field_name_, "' not found"));
     }
 
     SearchQuery sq;
