@@ -16,7 +16,6 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
-#include <set>
 #include <shared_mutex>
 #include <string>
 #include <variant>
@@ -1707,19 +1706,14 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
   }
 
   // Convert each SubQuery to a SearchQuery and validate.
-  std::set<std::string> seen_fields;
   std::vector<SearchQuery> search_queries;
+  std::vector<std::string> field_names;
   search_queries.reserve(query.queries.size());
+  field_names.reserve(query.queries.size());
 
   for (const auto &sub : query.queries) {
     const auto &target = sub.target_;
-    auto [_, inserted] = seen_fields.insert(target.field_name_);
-    if (!inserted) {
-      return tl::make_unexpected(Status::InvalidArgument(
-          "Duplicate field name in multi-query: ", target.field_name_));
-    }
-    // Use get_field uniformly; validate_and_sanitize checks type compatibility.
-    auto *field_schema = schema_->get_field(target.field_name_);
+    auto *field_schema = schema_->get_vector_field(target.field_name_);
     if (!field_schema) {
       return tl::make_unexpected(
           Status::InvalidArgument("Field not found: ", target.field_name_));
@@ -1735,18 +1729,11 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
 
     auto s = sq.validate_and_sanitize(field_schema);
     CHECK_RETURN_STATUS_EXPECTED(s);
+    field_names.push_back(target.field_name_);
     search_queries.push_back(std::move(sq));
   }
 
-  std::vector<DocPtrList> query_results;
-  query_results.resize(search_queries.size());
-
-  std::vector<std::string> field_names;
-  field_names.reserve(search_queries.size());
-  for (const auto &sq : search_queries) {
-    field_names.push_back(sq.target_.field_name_);
-  }
-
+  // Execute sub-queries.
   auto execute_query = [&](SearchQuery &sq) -> Result<DocPtrList> {
     auto engine = sqlengine::SQLEngine::create(std::make_shared<Profiler>());
     return engine->execute(schema_, std::move(sq), segments);
@@ -1769,14 +1756,16 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
     }
   }
 
-  for (size_t i = 0; i < search_queries.size(); ++i) {
-    if (!results[i]) {
-      return tl::make_unexpected(results[i].error());
+  // Collect results and rerank.
+  std::vector<DocPtrList> query_results;
+  query_results.reserve(results.size());
+  for (auto &result : results) {
+    if (!result) {
+      return tl::make_unexpected(result.error());
     }
-    query_results[i] = std::move(results[i].value());
+    query_results.push_back(std::move(result.value()));
   }
 
-  // Merge and rerank results
   query.reranker->bind_schema(schema_, field_names);
   return query.reranker->rerank(query_results, query.topk);
 }
