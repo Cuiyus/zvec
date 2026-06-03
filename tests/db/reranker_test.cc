@@ -120,7 +120,7 @@ TEST(WeightedRerankerTest, BasicWeighted) {
   auto schema =
       MakeSchema({{"vec1", MetricType::L2}, {"vec2", MetricType::L2}});
   WeightedReranker reranker({0.7, 0.3});
-  ASSERT_TRUE(reranker.bind_schema(schema, {"vec1", "vec2"}).has_value());
+  reranker.bind_schema(schema, {"vec1", "vec2"});
 
   std::vector<DocPtrList> query_results;
   query_results.push_back({MakeDoc("a", 0.5f), MakeDoc("b", 0.3f)});
@@ -138,7 +138,7 @@ TEST(WeightedRerankerTest, MixedMetrics) {
   auto schema =
       MakeSchema({{"vec1", MetricType::L2}, {"vec2", MetricType::COSINE}});
   WeightedReranker reranker({0.5, 0.5});
-  ASSERT_TRUE(reranker.bind_schema(schema, {"vec1", "vec2"}).has_value());
+  reranker.bind_schema(schema, {"vec1", "vec2"});
 
   std::vector<DocPtrList> query_results;
   query_results.push_back({MakeDoc("a", 0.5f)});
@@ -161,15 +161,20 @@ TEST(WeightedRerankerTest, MixedMetrics) {
 TEST(WeightedRerankerTest, MissingMetricError) {
   auto schema = MakeSchema({{"vec1", MetricType::L2}});
   WeightedReranker reranker;
-  // Binding a field that is absent from the schema should fail.
-  auto bind_result = reranker.bind_schema(schema, {"vec1", "vec2"});
-  ASSERT_FALSE(bind_result.has_value());
+  // Binding a field that is absent from the schema should fail at rerank time.
+  reranker.bind_schema(schema, {"vec1", "vec2"});
+
+  std::vector<DocPtrList> query_results;
+  query_results.push_back({MakeDoc("a", 0.5f)});
+  query_results.push_back({MakeDoc("b", 0.3f)});
+  auto result = reranker.rerank(query_results);
+  ASSERT_FALSE(result.has_value());
 }
 
 TEST(WeightedRerankerTest, NormalizeL2) {
   auto schema = MakeSchema({{"vec1", MetricType::L2}});
   WeightedReranker reranker;
-  ASSERT_TRUE(reranker.bind_schema(schema, {"vec1"}).has_value());
+  reranker.bind_schema(schema, {"vec1"});
 
   std::vector<DocPtrList> query_results;
   query_results.push_back({MakeDoc("a", 0.0f), MakeDoc("b", 1.0f)});
@@ -188,7 +193,7 @@ TEST(WeightedRerankerTest, NormalizeL2) {
 TEST(WeightedRerankerTest, NormalizeIP) {
   auto schema = MakeSchema({{"vec1", MetricType::IP}});
   WeightedReranker reranker;
-  ASSERT_TRUE(reranker.bind_schema(schema, {"vec1"}).has_value());
+  reranker.bind_schema(schema, {"vec1"});
 
   std::vector<DocPtrList> query_results;
   query_results.push_back({MakeDoc("a", 0.0f), MakeDoc("b", 1.0f)});
@@ -206,7 +211,7 @@ TEST(WeightedRerankerTest, NormalizeIP) {
 TEST(WeightedRerankerTest, NormalizeCosine) {
   auto schema = MakeSchema({{"vec1", MetricType::COSINE}});
   WeightedReranker reranker;
-  ASSERT_TRUE(reranker.bind_schema(schema, {"vec1"}).has_value());
+  reranker.bind_schema(schema, {"vec1"});
 
   std::vector<DocPtrList> query_results;
   query_results.push_back(
@@ -225,7 +230,7 @@ TEST(WeightedRerankerTest, NormalizeCosine) {
 TEST(WeightedRerankerTest, Topn) {
   auto schema = MakeSchema({{"vec1", MetricType::L2}});
   WeightedReranker reranker;
-  ASSERT_TRUE(reranker.bind_schema(schema, {"vec1"}).has_value());
+  reranker.bind_schema(schema, {"vec1"});
 
   std::vector<DocPtrList> query_results;
   query_results.push_back(

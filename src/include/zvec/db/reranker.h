@@ -32,11 +32,8 @@ class Reranker {
   Reranker() = default;
   virtual ~Reranker() = default;
 
-  virtual Result<void> bind_schema(
-      CollectionSchema::Ptr /*schema*/,
-      const std::vector<std::string> & /*field_names*/) {
-    return {};
-  }
+  virtual void bind_schema(CollectionSchema::Ptr /*schema*/,
+                           const std::vector<std::string> & /*field_names*/) {}
 
   //! Re-rank documents from one or more vector queries.
   //! \param query_results Per-query lists of retrieved documents (sorted by
@@ -95,13 +92,16 @@ class RrfReranker : public ScoreBasedReranker {
 //! Each vector field's relevance score is normalized based on its own metric
 //! type, then scaled by a user-provided weight. Final scores are summed across
 //! fields. Supported metrics: L2, IP, COSINE.
+//!
+//! @note NOT thread-safe. The bind_schema() and rerank() calls share mutable
+//! state. Each concurrent query must use its own WeightedReranker instance or
+//! serialize access externally.
 class WeightedReranker : public ScoreBasedReranker {
  public:
   explicit WeightedReranker(const std::vector<double> &weights = {});
 
-  Result<void> bind_schema(
-      CollectionSchema::Ptr schema,
-      const std::vector<std::string> &field_names) override;
+  void bind_schema(CollectionSchema::Ptr schema,
+                   const std::vector<std::string> &field_names) override;
 
   const std::vector<double> &weights() const {
     return weights_;
@@ -113,7 +113,8 @@ class WeightedReranker : public ScoreBasedReranker {
 
   static Result<double> normalize_score(double score, const FieldSchema &field);
 
-  std::vector<const FieldSchema *> field_schemas_;
+  CollectionSchema::Ptr schema_;
+  std::vector<std::string> field_names_;
   std::vector<double> weights_;
 };
 
