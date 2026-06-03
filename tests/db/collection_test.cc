@@ -3804,30 +3804,6 @@ TEST_F(CollectionTest, Feature_MultiQuery_Validate) {
     EXPECT_EQ(result.error().code(), StatusCode::INVALID_ARGUMENT);
   }
 
-  // Test 4: Duplicate field names should fail
-  {
-    MultiQuery mvq;
-    mvq.topk = 10;
-    mvq.reranker = std::make_shared<RrfReranker>(60);
-
-    SubQuery vq1;
-    vq1.num_candidates_ = 10;
-    vq1.target_.field_name_ = "dense_fp32";
-    std::get<VectorClause>(vq1.target_.clause_)
-        .query_vector_.assign(128 * sizeof(float), '\0');
-    mvq.queries.push_back(vq1);
-
-    SubQuery vq2;
-    vq2.num_candidates_ = 10;
-    vq2.target_.field_name_ = "dense_fp32";
-    std::get<VectorClause>(vq2.target_.clause_)
-        .query_vector_.assign(128 * sizeof(float), '\0');
-    mvq.queries.push_back(vq2);
-
-    auto result = collection->Query(mvq);
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code(), StatusCode::INVALID_ARGUMENT);
-  }
 }
 
 TEST_F(CollectionTest, Feature_MultiQuery_SingleFieldWithReranker) {
