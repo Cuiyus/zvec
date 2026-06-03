@@ -152,25 +152,25 @@ class QueryExecutor:
             docs_list = self._execute_python_pipeline(queries, collection)
             return self._merge_and_rerank(ctx, docs_list)
 
-        mvq = self._build_multi_query(ctx, queries)
-        docs = collection.Query(mvq)
+        multi_query = self._build_multi_query(ctx, queries)
+        docs = collection.Query(multi_query)
         return [convert_to_py_doc(doc, self._schema) for doc in docs]
 
     def _build_multi_query(
         self, ctx: QueryContext, queries: list[_SearchQuery]
     ) -> _MultiQuery:
         """Assemble a C++ ``_MultiQuery`` from per-route ``_SearchQuery`` objects."""
-        mvq = _MultiQuery()
-        mvq.queries = [_SubQuery.from_search_query(query) for query in queries]
-        mvq.topk = ctx.topk
+        multi_query = _MultiQuery()
+        multi_query.queries = [_SubQuery.from_search_query(query) for query in queries]
+        multi_query.topk = ctx.topk
         if ctx.filter:
-            mvq.filter = ctx.filter
-        mvq.include_vector = ctx.include_vector
+            multi_query.filter = ctx.filter
+        multi_query.include_vector = ctx.include_vector
         if ctx.output_fields:
-            mvq.output_fields = ctx.output_fields
+            multi_query.output_fields = ctx.output_fields
         if ctx.reranker is not None:
-            mvq.reranker = ctx.reranker._get_object()
-        return mvq
+            multi_query.reranker = ctx.reranker._get_object()
+        return multi_query
 
     def _execute_python_pipeline(
         self, vectors: list[_SearchQuery], collection: _Collection
