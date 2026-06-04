@@ -1006,15 +1006,15 @@ class TestDocList:
         assert QR == list[Doc]
 
     def test_rrf_reranker_delegates_to_cpp(self):
-        """RrfReRanker.rerank() raises NotImplementedError."""
+        """RrfReRanker.rerank() delegates to C++ (raises TypeError with Python Docs)."""
         reranker = RrfReRanker(topn=5)
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(TypeError):
             reranker.rerank([[Doc(id="1", score=0.5)]])
 
     def test_weighted_reranker_delegates_to_cpp(self):
-        """WeightedReRanker.rerank() raises NotImplementedError."""
+        """WeightedReRanker.rerank() delegates to C++ (raises TypeError with Python Docs)."""
         reranker = WeightedReRanker(topn=5, weights=[0.7, 0.3])
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(TypeError):
             reranker.rerank([[Doc(id="1", score=0.5)], [Doc(id="2", score=0.3)]])
 
     def test_single_route_query_results(self):

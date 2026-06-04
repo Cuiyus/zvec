@@ -142,10 +142,10 @@ Result<double> WeightedReranker::rescore(double score, int /*rank*/,
                                 std::to_string(query_index)));
   }
   const auto &field_name = field_names_[query_index];
-  const auto *field = schema_->get_vector_field(field_name);
+  const auto *field = schema_->get_field(field_name);
   if (!field) {
     return tl::make_unexpected(Status::InvalidArgument(
-        "WeightedReranker: vector field not found: '", field_name + "'"));
+        "WeightedReranker: field not found: '", field_name + "'"));
   }
   auto normalized = normalize_score(score, *field);
   if (!normalized.has_value()) {

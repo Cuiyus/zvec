@@ -1713,10 +1713,21 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
 
   for (const auto &sub : query.queries) {
     const auto &target = sub.target_;
-    auto *field_schema = schema_->get_vector_field(target.field_name_);
-    if (!field_schema) {
-      return tl::make_unexpected(Status::InvalidArgument(
-          "Invalid query: field '", target.field_name_, "' not found"));
+    const FieldSchema *field_schema = nullptr;
+    if (target.get_fts_clause() != nullptr) {
+      // FTS query: look up as a general field.
+      field_schema = schema_->get_field(target.field_name_);
+      if (!field_schema) {
+        return tl::make_unexpected(Status::InvalidArgument(
+            "Invalid query: field '", target.field_name_, "' not found"));
+      }
+    } else {
+      // Vector query: must be a vector field.
+      field_schema = schema_->get_vector_field(target.field_name_);
+      if (!field_schema) {
+        return tl::make_unexpected(Status::InvalidArgument(
+            "Invalid query: field '", target.field_name_, "' not found"));
+      }
     }
 
     SearchQuery sq;

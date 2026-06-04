@@ -234,7 +234,7 @@ class TestQueryExecutor:
         executor = QueryExecutor(schema)
         ctx = QueryContext(topk=5, filter="test_filter")
 
-        result = executor._do_build(ctx, MagicMock())
+        result = executor._build_queries(ctx, MagicMock())
         assert len(result) == 1
         assert result[0].topk == 5
         assert result[0].filter == "test_filter"
@@ -245,7 +245,7 @@ class TestQueryExecutor:
         executor = QueryExecutor(schema)
         ctx = QueryContext(topk=7, filter="f", include_vector=True)
 
-        core_vector = executor._do_build_query_wo_vector(ctx)
+        core_vector = executor._build_base_search_query(ctx)
         assert core_vector.topk == 7
         assert core_vector.filter == "f"
         assert core_vector.include_vector is True
@@ -257,7 +257,7 @@ class TestQueryExecutor:
         ctx = QueryContext(topk=5)
         docs_list = [["doc1", "doc2"]]
 
-        result = executor._do_merge_rerank_results(ctx, docs_list)
+        result = executor._merge_and_rerank(ctx, docs_list)
         assert result == ["doc1", "doc2"]
 
     def test_do_merge_rerank_results_empty(self):
@@ -267,7 +267,7 @@ class TestQueryExecutor:
         ctx = QueryContext(topk=5)
 
         with pytest.raises(ValueError, match="Query results is empty"):
-            executor._do_merge_rerank_results(ctx, [])
+            executor._merge_and_rerank(ctx, [])
 
     def test_do_merge_rerank_results_with_reranker(self):
         # Multiple result lists are merged through the reranker.
@@ -282,7 +282,7 @@ class TestQueryExecutor:
         )
         docs_list = [["d1"], ["d2"]]
 
-        result = executor._do_merge_rerank_results(ctx, docs_list)
+        result = executor._merge_and_rerank(ctx, docs_list)
         assert result == ["merged"]
         reranker.rerank.assert_called_once_with(docs_list)
 
