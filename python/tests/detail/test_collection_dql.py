@@ -824,7 +824,7 @@ class TestCollectionQuery:
         for k, v in DEFAULT_VECTOR_FIELD_NAME.items():
             multi_query_vectors.append(Query(field_name=v, vector=doc_vectors[v]))
 
-        rrf_reranker = RrfReRanker(topn=3)
+        rrf_reranker = RrfReRanker()
         multi_query_result = full_collection.query(
             multi_query_vectors,
             reranker=rrf_reranker,
@@ -877,7 +877,7 @@ class TestCollectionQuery:
         doc_fields, doc_vectors = generate_vectordict_random(full_collection.schema)
 
         weight_list = [weights[v] for v in DEFAULT_VECTOR_FIELD_NAME.values()]
-        weighted_reranker = WeightedReRanker(topn=3, weights=weight_list)
+        weighted_reranker = WeightedReRanker(weights=weight_list)
 
         single_query_results = {}
         for k, v in DEFAULT_VECTOR_FIELD_NAME.items():

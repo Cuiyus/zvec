@@ -32,8 +32,6 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
 
     Args:
         query (str): Query text for semantic re-ranking. **Required**.
-        topn (int, optional): Maximum number of documents to return after re-ranking.
-            Defaults to 10.
         rerank_field (str): Document field name to use as re-ranking input text.
             **Required** (e.g., "content", "title", "body").
         model (str, optional): DashScope re-ranking model identifier.
@@ -53,7 +51,6 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
     Example:
         >>> reranker = QwenReRanker(
         ...     query="machine learning algorithms",
-        ...     topn=5,
         ...     rerank_field="content",
         ...     model="gte-rerank-v2",
         ...     api_key="your-api-key"
@@ -64,7 +61,6 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
     def __init__(
         self,
         query: Optional[str] = None,
-        topn: int = 10,
         rerank_field: Optional[str] = None,
         model: str = "gte-rerank-v2",
         api_key: Optional[str] = None,
@@ -73,7 +69,6 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
 
         Args:
             query (Optional[str]): Query text for semantic matching. Required.
-            topn (int): Number of top results to return.
             rerank_field (Optional[str]): Document field for re-ranking input.
             model (str): DashScope model name.
             api_key (Optional[str]): API key or None to use environment variable.
@@ -82,18 +77,24 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
             ValueError: If query is empty or API key is unavailable.
         """
         QwenFunctionBase.__init__(self, model=model, api_key=api_key)
-        RerankFunction.__init__(self, topn=topn, rerank_field=rerank_field)
+        RerankFunction.__init__(self)
 
         if not query:
             raise ValueError("Query is required for QwenReRanker")
         self._query = query
+        self._rerank_field = rerank_field
 
     @property
     def query(self) -> str:
         """str: Query text used for semantic re-ranking."""
         return self._query
 
-    def rerank(self, query_results: list[DocList]) -> DocList:
+    @property
+    def rerank_field(self) -> Optional[str]:
+        """Optional[str]: Field name used as re-ranking input."""
+        return self._rerank_field
+
+    def rerank(self, query_results: list[DocList], topn: int) -> DocList:
         """Re-rank documents using Qwen's TextReRank API.
 
         Sends document texts to DashScope TextReRank service along with the query.
@@ -104,6 +105,7 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
                 positionally aligned with the queries supplied to
                 ``collection.query()``. Documents from all routes are
                 deduplicated and re-ranked together.
+            topn (int): Maximum number of documents to return after re-ranking.
 
         Returns:
             DocList: Re-ranked documents (up to ``topn``) with updated
@@ -148,7 +150,7 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
         output = self._call_rerank_api(
             query=self.query,
             documents=contents,
-            top_n=self.topn,
+            top_n=topn,
         )
 
         # Build result list with updated scores

@@ -184,7 +184,7 @@ class QueryExecutor:
             raise ValueError("Query results is empty")
         if len(docs_list) == 1 and not ctx.reranker:
             return docs_list[0]
-        return ctx.reranker.rerank(docs_list)
+        return ctx.reranker.rerank(docs_list, ctx.topk)
 
     def _build_base_search_query(self, ctx: QueryContext) -> _SearchQuery:
         search_query = _SearchQuery()

@@ -1051,7 +1051,7 @@ class TestCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
         """Test multi-vector query with RRF reranker on multiple dense vectors."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
+        reranker = RrfReRanker(rank_constant=60)
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="dense", vector=multiple_docs[0].vector("dense")),
@@ -1070,7 +1070,7 @@ class TestCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
         """Test multi-vector query with RRF reranker on multiple sparse vectors."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
+        reranker = RrfReRanker(rank_constant=60)
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="sparse", vector=multiple_docs[0].vector("sparse")),
@@ -1089,7 +1089,7 @@ class TestCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
         """Test multi-vector query with RRF reranker combining dense + sparse."""
-        reranker = RrfReRanker(topn=10, rank_constant=60)
+        reranker = RrfReRanker(rank_constant=60)
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="dense", vector=multiple_docs[0].vector("dense")),
@@ -1105,7 +1105,7 @@ class TestCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
         """Test multi-vector query with Weighted reranker on multiple dense vectors."""
-        reranker = WeightedReRanker(topn=10, weights=[0.6, 0.4])
+        reranker = WeightedReRanker(weights=[0.6, 0.4])
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="dense", vector=multiple_docs[0].vector("dense")),
@@ -1121,7 +1121,7 @@ class TestCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
         """Test multi-vector query with Weighted reranker on multiple sparse vectors."""
-        reranker = WeightedReRanker(topn=10, weights=[0.6, 0.4])
+        reranker = WeightedReRanker(weights=[0.6, 0.4])
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="sparse", vector=multiple_docs[0].vector("sparse")),
@@ -1140,7 +1140,7 @@ class TestCollectionQuery:
         self, collection_with_multiple_docs: Collection, multiple_docs
     ):
         """Test multi-vector query with Weighted reranker combining dense + sparse."""
-        reranker = WeightedReRanker(topn=10, weights=[0.7, 0.3])
+        reranker = WeightedReRanker(weights=[0.7, 0.3])
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="dense", vector=multiple_docs[0].vector("dense")),
@@ -1172,7 +1172,7 @@ class TestCollectionQuery:
             unique_docs.sort(key=lambda d: d.score(), reverse=True)
             return unique_docs[:topn]
 
-        reranker = CallbackReRanker(callback=my_rerank_callback, topn=10)
+        reranker = CallbackReRanker(callback=my_rerank_callback)
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="dense", vector=multiple_docs[0].vector("dense")),
@@ -1203,7 +1203,7 @@ class TestCollectionQuery:
             unique_docs.sort(key=lambda d: d.score(), reverse=True)
             return unique_docs[:topn]
 
-        reranker = CallbackReRanker(callback=my_rerank_callback, topn=5)
+        reranker = CallbackReRanker(callback=my_rerank_callback)
         result = collection_with_multiple_docs.query(
             [
                 Query(field_name="dense", vector=multiple_docs[0].vector("dense")),

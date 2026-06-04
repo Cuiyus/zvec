@@ -195,7 +195,6 @@ class TestQueryContext:
     def test_properties_with_weighted_reranker(self):
         queries = [Query(field_name="test")]
         reranker = WeightedReRanker(
-            topn=10,
             weights=[1.0],
         )
 
@@ -211,7 +210,7 @@ class TestQueryContext:
     def test_properties_with_callback_reranker(self):
         queries = [Query(field_name="test")]
         cb = lambda query_results, topn: []
-        reranker = CallbackReRanker(callback=cb, topn=10)
+        reranker = CallbackReRanker(callback=cb)
 
         ctx = QueryContext(
             topk=5,
@@ -284,7 +283,7 @@ class TestQueryExecutor:
 
         result = executor._merge_and_rerank(ctx, docs_list)
         assert result == ["merged"]
-        reranker.rerank.assert_called_once_with(docs_list)
+        reranker.rerank.assert_called_once_with(docs_list, ctx.topk)
 
     def test_execute_python_pipeline(self):
         # Each query is executed serially and converted into a result list.

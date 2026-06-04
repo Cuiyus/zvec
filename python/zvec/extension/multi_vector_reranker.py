@@ -32,19 +32,14 @@ class RrfReRanker(RerankFunction):
     where ``k`` is the rank constant.
 
     Args:
-        topn (int, optional): Number of top documents to return. Defaults to 10.
-        rerank_field (Optional[str], optional): Ignored by RRF. Defaults to None.
         rank_constant (int, optional): Smoothing constant ``k`` in RRF formula.
             Larger values reduce the impact of early ranks. Defaults to 60.
     """
 
     def __init__(
         self,
-        topn: int = 10,
-        rerank_field: Optional[str] = None,
         rank_constant: int = 60,
     ):
-        super().__init__(topn=topn, rerank_field=rerank_field)
         self._rank_constant = rank_constant
         # Use C++ implementation for performance
         self._cpp_reranker = _RrfReranker(rank_constant)
@@ -57,17 +52,18 @@ class RrfReRanker(RerankFunction):
         """Return the underlying C++ RrfReranker instance."""
         return self._cpp_reranker
 
-    def rerank(self, query_results: list[DocList]) -> DocList:
+    def rerank(self, query_results: list[DocList], topn: int) -> DocList:
         """Re-rank using C++ RRF implementation.
 
         Args:
             query_results (list[DocList]): Multi-route recall results,
                 positionally aligned with queries.
+            topn (int): Number of top documents to return.
 
         Returns:
             DocList: Re-ranked documents.
         """
-        return self._cpp_reranker.rerank(query_results, self.topn)
+        return self._cpp_reranker.rerank(query_results, topn)
 
 
 class WeightedReRanker(RerankFunction):
@@ -78,8 +74,6 @@ class WeightedReRanker(RerankFunction):
     fields. The actual re-ranking logic lives in the C++ implementation.
 
     Args:
-        topn (int, optional): Number of top documents to return. Defaults to 10.
-        rerank_field (Optional[str], optional): Ignored. Defaults to None.
         weights (Optional[list[float]], optional): Weight per vector field,
             aligned by position with the queries supplied to ``collection.query()``.
             Defaults to None (treated as an empty list).
@@ -87,11 +81,8 @@ class WeightedReRanker(RerankFunction):
 
     def __init__(
         self,
-        topn: int = 10,
-        rerank_field: Optional[str] = None,
         weights: Optional[list[float]] = None,
     ):
-        super().__init__(topn=topn, rerank_field=rerank_field)
         self._cpp_reranker = _WeightedReranker(weights or [])
 
     @property
@@ -103,17 +94,18 @@ class WeightedReRanker(RerankFunction):
         """Return the underlying C++ WeightedReranker instance."""
         return self._cpp_reranker
 
-    def rerank(self, query_results: list[DocList]) -> DocList:
+    def rerank(self, query_results: list[DocList], topn: int) -> DocList:
         """Re-rank using C++ Weighted implementation.
 
         Args:
             query_results (list[DocList]): Multi-route recall results,
                 positionally aligned with queries.
+            topn (int): Number of top documents to return.
 
         Returns:
             DocList: Re-ranked documents.
         """
-        return self._cpp_reranker.rerank(query_results, self.topn)
+        return self._cpp_reranker.rerank(query_results, topn)
 
 
 class CallbackReRanker(RerankFunction):
@@ -128,15 +120,12 @@ class CallbackReRanker(RerankFunction):
     Args:
         callback: A callable with signature
             ``(query_results: list[list[_Doc]], topn: int) -> list[_Doc]``.
-        topn (int, optional): Number of top documents to return. Defaults to 10.
     """
 
     def __init__(
         self,
         callback: Callable,
-        topn: int = 10,
     ):
-        super().__init__(topn=topn)
         self._callback = callback
         self._cpp_reranker = _CallbackReranker(callback)
 
@@ -144,14 +133,15 @@ class CallbackReRanker(RerankFunction):
         """Return the underlying C++ CallbackReranker instance."""
         return self._cpp_reranker
 
-    def rerank(self, query_results: list[DocList]) -> DocList:
+    def rerank(self, query_results: list[DocList], topn: int) -> DocList:
         """Invoke the callback to re-rank documents.
 
         Args:
             query_results (list[DocList]): Multi-route recall results,
                 positionally aligned with queries.
+            topn (int): Number of top documents to return.
 
         Returns:
             DocList: Re-ranked documents.
         """
-        return self._callback(query_results, self.topn)
+        return self._callback(query_results, topn)
