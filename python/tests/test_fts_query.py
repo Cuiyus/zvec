@@ -110,7 +110,7 @@ class TestFtsQueryBinding:
         assert restored.query_string == "+vector search"
         assert restored.match_string == ""
 
-    def test_vector_query_fts_field(self):
+    def test_search_query_fts_field(self):
         """_SearchQuery should have fts field."""
         from _zvec.param import _Fts, _SearchQuery
 
@@ -125,7 +125,7 @@ class TestFtsQueryBinding:
         assert vq.fts is not None
         assert vq.fts.query_string == "hello"
 
-    def test_vector_query_pickle_with_fts(self):
+    def test_search_query_pickle_with_fts(self):
         """_SearchQuery with fts should survive pickling."""
         from _zvec.param import _Fts, _SearchQuery
 
@@ -143,7 +143,7 @@ class TestFtsQueryBinding:
         assert restored.fts is not None
         assert restored.fts.match_string == "test query"
 
-    def test_vector_query_pickle_without_fts(self):
+    def test_search_query_pickle_without_fts(self):
         """_SearchQuery without fts should survive pickling."""
         from _zvec.param import _SearchQuery
 

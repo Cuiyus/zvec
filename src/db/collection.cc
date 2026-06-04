@@ -1713,6 +1713,7 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
 
   for (const auto &sub : query.queries) {
     const auto &target = sub.target_;
+
     const FieldSchema *field_schema = nullptr;
     if (target.get_fts_clause() != nullptr) {
       // FTS query: look up as a general field.
