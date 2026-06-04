@@ -1538,19 +1538,19 @@ void ZVecPyParams::bind_vector_query(py::module_ &m) {
       .def(py::init<>())
       .def_readwrite("num_candidates", &SubQuery::num_candidates_)
       .def_static(
-          "from_vector_query",
+          "from_search_query",
           [](const SearchQuery &sq) {
             SubQuery sub;
             sub.num_candidates_ = sq.topk_;
             sub.target_ = sq.target_;
             return sub;
           },
-          py::arg("vector_query"),
+          py::arg("search_query"),
           "Create a SubQuery from a single-target search query.");
 
-  // _VectorQuery is the historical Python class name; it now wraps the
+  // _SearchQuery is the Python class name; it wraps the
   // single-target SearchQuery so external Python code keeps working unchanged.
-  py::class_<SearchQuery>(m, "_VectorQuery")
+  py::class_<SearchQuery>(m, "_SearchQuery")
       .def(py::init<>())
       // properties
       .def_readwrite("topk", &SearchQuery::topk_)
@@ -1805,7 +1805,7 @@ void ZVecPyParams::bind_vector_query(py::module_ &m) {
           },
           [](py::tuple t) {
             if (t.size() != 10)
-              throw std::runtime_error("Invalid pickle data for _VectorQuery");
+              throw std::runtime_error("Invalid pickle data for _SearchQuery");
 
             SearchQuery obj{};
             obj.topk_ = t[0].cast<int>();
