@@ -3747,7 +3747,7 @@ TEST_F(CollectionTest, Feature_MultiQuery_Validate) {
   {
     MultiQuery mvq;
     mvq.topk = 10;
-    mvq.rerank = RrfParams{60};
+    mvq.rerank = reranker::RrfParams{60};
     auto result = collection->Query(mvq);
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error().code(), StatusCode::INVALID_ARGUMENT);
@@ -3788,7 +3788,7 @@ TEST_F(CollectionTest, Feature_MultiQuery_Validate) {
   {
     MultiQuery mvq;
     mvq.topk = 10;
-    mvq.rerank = RrfParams{60};
+    mvq.rerank = reranker::RrfParams{60};
 
     SubQuery vq1;
     vq1.num_candidates_ = 10;
@@ -3809,11 +3809,12 @@ TEST_F(CollectionTest, Feature_MultiQuery_Validate) {
     EXPECT_EQ(result.error().code(), StatusCode::INVALID_ARGUMENT);
   }
 
-  // Test 4: Duplicate field names should succeed (same field, different vectors)
+  // Test 4: Duplicate field names should succeed (same field, different
+  // vectors)
   {
     MultiQuery mvq;
     mvq.topk = 10;
-    mvq.rerank = RrfParams{60};
+    mvq.rerank = reranker::RrfParams{60};
 
     SubQuery vq1;
     vq1.num_candidates_ = 10;
@@ -3849,7 +3850,7 @@ TEST_F(CollectionTest, Feature_MultiQuery_SingleFieldWithReranker) {
 
   MultiQuery mvq;
   mvq.topk = 10;
-  mvq.rerank = RrfParams{60};
+  mvq.rerank = reranker::RrfParams{60};
 
   SubQuery vq;
   vq.num_candidates_ = 10;
@@ -3880,7 +3881,7 @@ TEST_F(CollectionTest, Feature_MultiQuery_MultiFieldRRF) {
 
   MultiQuery mvq;
   mvq.topk = 10;
-  mvq.rerank = RrfParams{60};
+  mvq.rerank = reranker::RrfParams{60};
 
   // Query dense_fp32 and dense_fp16 fields with different vectors
   auto vector1 = query_doc.get<std::vector<float>>("dense_fp32");
@@ -3942,7 +3943,7 @@ TEST_F(CollectionTest, Feature_MultiQuery_MultiFieldWeighted) {
   mvq.topk = 10;
   // Weights are positional, parallel to the sub-query order below
   // (dense_fp32 first, sparse_fp32 second).
-  mvq.rerank = WeightedParams{{0.7, 0.3}};
+  mvq.rerank = reranker::WeightedParams{{0.7, 0.3}};
 
   // Query dense_fp32 field
   {
@@ -3996,7 +3997,7 @@ TEST_F(CollectionTest, Feature_MultiQuery_WithFilter) {
   MultiQuery mvq;
   mvq.topk = 10;
   mvq.filter = "int32 > 50";
-  mvq.rerank = RrfParams{60};
+  mvq.rerank = reranker::RrfParams{60};
 
   SubQuery vq1;
   vq1.num_candidates_ = 10;
@@ -4046,7 +4047,7 @@ TEST_F(CollectionTest, Feature_MultiQuery_WithOutputFields) {
   mvq.include_vector = false;
   mvq.output_fields = std::make_optional<std::vector<std::string>>(
       std::vector<std::string>{"int32", "string"});
-  mvq.rerank = RrfParams{60};
+  mvq.rerank = reranker::RrfParams{60};
 
   SubQuery vq1;
   vq1.num_candidates_ = 10;
@@ -4117,7 +4118,7 @@ TEST_F(CollectionTest, Feature_MultiQuery_CallbackReranker) {
 
   MultiQuery mvq;
   mvq.topk = 10;
-  mvq.rerank = CallbackParams{callback_fn};
+  mvq.rerank = reranker::CallbackParams{callback_fn};
 
   // Query dense_fp32 field
   {

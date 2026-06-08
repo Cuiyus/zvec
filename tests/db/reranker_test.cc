@@ -54,8 +54,9 @@ TEST(RerankRrfTest, BasicRRF) {
   results.push_back(
       {MakeDoc("b", 0.95f), MakeDoc("a", 0.85f), MakeDoc("d", 0.75f)});
 
-  auto result = reranker::rerank(RrfParams{/*rank_constant=*/60}, results,
-                                 /*fields=*/{}, /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::RrfParams{/*rank_constant=*/60}, results,
+                       /*fields=*/{}, /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   auto &out = result.value();
 
@@ -75,8 +76,9 @@ TEST(RerankRrfTest, Topn) {
   results.push_back(
       {MakeDoc("a", 0.9f), MakeDoc("b", 0.8f), MakeDoc("c", 0.7f)});
 
-  auto result = reranker::rerank(RrfParams{/*rank_constant=*/60}, results,
-                                 /*fields=*/{}, /*topn=*/2);
+  auto result =
+      reranker::rerank(reranker::RrfParams{/*rank_constant=*/60}, results,
+                       /*fields=*/{}, /*topn=*/2);
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result.value().size(), 2u);
 }
@@ -85,8 +87,9 @@ TEST(RerankRrfTest, SingleField) {
   std::vector<DocPtrList> results;
   results.push_back({MakeDoc("a", 0.9f), MakeDoc("b", 0.8f)});
 
-  auto result = reranker::rerank(RrfParams{/*rank_constant=*/60}, results,
-                                 /*fields=*/{}, /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::RrfParams{/*rank_constant=*/60}, results,
+                       /*fields=*/{}, /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   auto &out = result.value();
   ASSERT_EQ(out.size(), 2u);
@@ -96,8 +99,9 @@ TEST(RerankRrfTest, SingleField) {
 
 TEST(RerankRrfTest, EmptyResults) {
   std::vector<DocPtrList> results;
-  auto result = reranker::rerank(RrfParams{/*rank_constant=*/60}, results,
-                                 /*fields=*/{}, /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::RrfParams{/*rank_constant=*/60}, results,
+                       /*fields=*/{}, /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   EXPECT_TRUE(result.value().empty());
 }
@@ -107,8 +111,9 @@ TEST(RerankRrfTest, DefaultParams) {
   std::vector<DocPtrList> results;
   results.push_back({MakeDoc("a", 0.9f), MakeDoc("b", 0.8f)});
 
-  auto result = reranker::rerank(RerankParams{}, results, /*fields=*/{},
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::RerankParams{}, results, /*fields=*/{},
+                       /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result.value().size(), 2u);
 }
@@ -122,8 +127,9 @@ TEST(RerankWeightedTest, BasicWeighted) {
   std::vector<FieldSchema::Ptr> fields = {MakeField("vec1", MetricType::L2),
                                           MakeField("vec2", MetricType::L2)};
 
-  auto result = reranker::rerank(WeightedParams{{0.7, 0.3}}, results, fields,
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::WeightedParams{{0.7, 0.3}}, results, fields,
+                       /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   auto &out = result.value();
   ASSERT_GE(out.size(), 2u);
@@ -138,8 +144,9 @@ TEST(RerankWeightedTest, MixedMetrics) {
   std::vector<FieldSchema::Ptr> fields = {
       MakeField("vec1", MetricType::L2), MakeField("vec2", MetricType::COSINE)};
 
-  auto result = reranker::rerank(WeightedParams{{0.5, 0.5}}, results, fields,
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::WeightedParams{{0.5, 0.5}}, results, fields,
+                       /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   auto &out = result.value();
   ASSERT_EQ(out.size(), 1u);
@@ -161,8 +168,9 @@ TEST(RerankWeightedTest, WeightsCountMismatch) {
                                           MakeField("vec2", MetricType::L2)};
 
   // Only one weight provided for two sub-queries.
-  auto result = reranker::rerank(WeightedParams{{1.0}}, results, fields,
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::WeightedParams{{1.0}}, results, fields,
+                       /*topn=*/10);
   ASSERT_FALSE(result.has_value());
 }
 
@@ -172,8 +180,9 @@ TEST(RerankWeightedTest, FieldsCountMismatch) {
   results.push_back({MakeDoc("b", 0.3f)});
   std::vector<FieldSchema::Ptr> fields = {MakeField("vec1", MetricType::L2)};
 
-  auto result = reranker::rerank(WeightedParams{{0.5, 0.5}}, results, fields,
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::WeightedParams{{0.5, 0.5}}, results, fields,
+                       /*topn=*/10);
   ASSERT_FALSE(result.has_value());
 }
 
@@ -182,8 +191,9 @@ TEST(RerankWeightedTest, NullFieldError) {
   results.push_back({MakeDoc("a", 0.5f)});
   std::vector<FieldSchema::Ptr> fields = {nullptr};
 
-  auto result = reranker::rerank(WeightedParams{{1.0}}, results, fields,
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::WeightedParams{{1.0}}, results, fields,
+                       /*topn=*/10);
   ASSERT_FALSE(result.has_value());
 }
 
@@ -192,8 +202,9 @@ TEST(RerankWeightedTest, NormalizeL2) {
   results.push_back({MakeDoc("a", 0.0f), MakeDoc("b", 1.0f)});
   std::vector<FieldSchema::Ptr> fields = {MakeField("vec1", MetricType::L2)};
 
-  auto result = reranker::rerank(WeightedParams{{1.0}}, results, fields,
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::WeightedParams{{1.0}}, results, fields,
+                       /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   auto &out = result.value();
   ASSERT_EQ(out.size(), 2u);
@@ -209,8 +220,9 @@ TEST(RerankWeightedTest, NormalizeIP) {
   results.push_back({MakeDoc("a", 0.0f), MakeDoc("b", 1.0f)});
   std::vector<FieldSchema::Ptr> fields = {MakeField("vec1", MetricType::IP)};
 
-  auto result = reranker::rerank(WeightedParams{{1.0}}, results, fields,
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::WeightedParams{{1.0}}, results, fields,
+                       /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   auto &out = result.value();
   ASSERT_EQ(out.size(), 2u);
@@ -227,8 +239,9 @@ TEST(RerankWeightedTest, NormalizeCosine) {
   std::vector<FieldSchema::Ptr> fields = {
       MakeField("vec1", MetricType::COSINE)};
 
-  auto result = reranker::rerank(WeightedParams{{1.0}}, results, fields,
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::WeightedParams{{1.0}}, results, fields,
+                       /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   auto &out = result.value();
   ASSERT_EQ(out.size(), 3u);
@@ -244,8 +257,9 @@ TEST(RerankWeightedTest, Topn) {
       {MakeDoc("a", 0.1f), MakeDoc("b", 0.2f), MakeDoc("c", 0.3f)});
   std::vector<FieldSchema::Ptr> fields = {MakeField("vec1", MetricType::L2)};
 
-  auto result = reranker::rerank(WeightedParams{{1.0}}, results, fields,
-                                 /*topn=*/2);
+  auto result =
+      reranker::rerank(reranker::WeightedParams{{1.0}}, results, fields,
+                       /*topn=*/2);
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result.value().size(), 2u);
 }
@@ -255,7 +269,7 @@ TEST(RerankWeightedTest, Topn) {
 TEST(RerankCallbackTest, BasicCallback) {
   // Simple callback that returns docs sorted by score descending, limited to
   // topn.
-  CallbackParams::Callback cb =
+  reranker::CallbackParams::Callback cb =
       [](const std::vector<DocPtrList> &results,
          const std::vector<FieldSchema::Ptr> & /*fields*/,
          int topn) -> DocPtrList {
@@ -279,8 +293,9 @@ TEST(RerankCallbackTest, BasicCallback) {
   results.push_back({MakeDoc("a", 0.5f), MakeDoc("b", 0.9f)});
   results.push_back({MakeDoc("c", 0.7f)});
 
-  auto result = reranker::rerank(CallbackParams{cb}, results, /*fields=*/{},
-                                 /*topn=*/10);
+  auto result =
+      reranker::rerank(reranker::CallbackParams{cb}, results, /*fields=*/{},
+                       /*topn=*/10);
   ASSERT_TRUE(result.has_value());
   auto &out = result.value();
   ASSERT_EQ(out.size(), 3u);
@@ -291,7 +306,7 @@ TEST(RerankCallbackTest, BasicCallback) {
 }
 
 TEST(RerankCallbackTest, EmptyCallbackError) {
-  CallbackParams params;  // callback is empty
+  reranker::CallbackParams params;  // callback is empty
   std::vector<DocPtrList> results;
   results.push_back({MakeDoc("a", 0.5f)});
 

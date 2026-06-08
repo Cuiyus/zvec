@@ -5629,7 +5629,7 @@ zvec_error_code_t zvec_multi_query_set_rerank_rrf(
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
   auto *mq = reinterpret_cast<zvec::MultiQuery *>(query);
-  mq->rerank = zvec::RrfParams{rank_constant};
+  mq->rerank = zvec::reranker::RrfParams{rank_constant};
   return ZVEC_OK;
 }
 
@@ -5644,8 +5644,8 @@ zvec_error_code_t zvec_multi_query_set_rerank_weighted(
     return ZVEC_ERROR_INVALID_ARGUMENT;
   }
   auto *mq = reinterpret_cast<zvec::MultiQuery *>(query);
-  mq->rerank =
-      zvec::WeightedParams{std::vector<double>(weights, weights + weight_count)};
+  mq->rerank = zvec::reranker::WeightedParams{
+      std::vector<double>(weights, weights + weight_count)};
   return ZVEC_OK;
 }
 

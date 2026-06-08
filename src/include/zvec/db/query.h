@@ -137,7 +137,7 @@ struct MultiQuery {
   //   empty     -> select no field
   //   non-empty -> select only the listed fields
   std::optional<std::vector<std::string>> output_fields;
-  RerankParams rerank;  // Value semantics, defaults to RRF k=60
+  reranker::RerankParams rerank;  // Value semantics, defaults to RRF k=60
 };
 
 

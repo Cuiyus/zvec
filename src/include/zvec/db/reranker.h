@@ -21,6 +21,7 @@
 #include <zvec/db/status.h>
 
 namespace zvec {
+namespace reranker {
 
 // ===========================================================================
 // Rerank parameter types (stateless, value semantics)
@@ -55,8 +56,6 @@ using RerankParams = std::variant<RrfParams, WeightedParams, CallbackParams>;
 // ===========================================================================
 // Public: Rerank execution API (stateless free function)
 // ===========================================================================
-
-namespace reranker {
 
 /// Unified rerank entry point.
 /// Dispatches to the appropriate algorithm based on the variant type.

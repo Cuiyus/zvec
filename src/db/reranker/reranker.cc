@@ -88,7 +88,7 @@ Result<DocPtrList> score_based_rerank(const ScoreFn &score_fn,
 
 Result<double> normalize_score(double score, const FieldSchema &field) {
   if (field.index_type() == IndexType::FTS) {
-    // Non-vector FTS/BM25 fields: map positive scores to (0.0, 1.0).
+    // Non-vector FTS/BM25 fields: map positive scores to [0, 1).
     return 2.0 * std::atan(score) / M_PI;
   }
   auto *vip =
