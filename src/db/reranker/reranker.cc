@@ -87,13 +87,12 @@ Result<DocPtrList> score_based_rerank(const ScoreFn &score_fn,
 }
 
 Result<double> normalize_score(double score, const FieldSchema &field) {
+  if (field.index_type() == IndexType::FTS) {
+    // Non-vector FTS/BM25 fields: map positive scores to (0.0, 1.0).
+    return 2.0 * std::atan(score) / M_PI;
+  }
   auto *vip =
       dynamic_cast<const VectorIndexParams *>(field.index_params().get());
-  if (!vip) {
-    // Non-vector fields (e.g., FTS/BM25): use IP-like normalization
-    // that maps positive scores to (0.5, 1.0).
-    return 0.5 + std::atan(score) / M_PI;
-  }
   switch (vip->metric_type()) {
     case MetricType::L2:
       return 1.0 - 2.0 * std::atan(score) / M_PI;
