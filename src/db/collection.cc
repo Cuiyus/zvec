@@ -1702,12 +1702,7 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
   }
 
   // Convert each SubQuery to a SearchQuery and validate.
-  struct PendingQuery {
-    std::string field_name;
-    SearchQuery query;
-  };
-
-  std::vector<PendingQuery> pending_queries;
+  std::vector<SearchQuery> pending_queries;
   std::vector<FieldSchema::Ptr> field_schemas;
   pending_queries.reserve(query.queries.size());
   field_schemas.reserve(query.queries.size());
@@ -1731,13 +1726,13 @@ Result<DocPtrList> CollectionImpl::Query(const MultiQuery &query) const {
 
     auto s = sq.validate_and_sanitize(field_schema);
     CHECK_RETURN_STATUS_EXPECTED(s);
-    pending_queries.push_back({target.field_name_, std::move(sq)});
+    pending_queries.push_back(std::move(sq));
     field_schemas.push_back(std::move(field_ptr));
   }
 
-  auto execute_query = [&](PendingQuery &pending) -> Result<DocPtrList> {
+  auto execute_query = [&](SearchQuery &pending) -> Result<DocPtrList> {
     auto engine = sqlengine::SQLEngine::create(std::make_shared<Profiler>());
-    return engine->execute(schema_, std::move(pending.query), segments);
+    return engine->execute(schema_, std::move(pending), segments);
   };
 
   std::vector<Result<DocPtrList>> results(pending_queries.size());
