@@ -149,9 +149,12 @@ class QueryExecutor:
         the C++ variant-based fast path.
         """
         reranker = ctx.reranker
-        if reranker is not None and not isinstance(
-            reranker, (RrfReRanker, WeightedReRanker, CallbackReRanker)
-        ):
+        if reranker is None:
+            raise ValueError(
+                "A reranker is required to merge results from multiple queries; "
+                "specify the 'reranker' argument."
+            )
+        if not isinstance(reranker, (RrfReRanker, WeightedReRanker, CallbackReRanker)):
             docs_list = self._execute_python_pipeline(queries, collection)
             return self._merge_and_rerank(ctx, docs_list)
 
