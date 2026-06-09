@@ -91,12 +91,6 @@ class QwenReRanker(QwenFunctionBase, RerankFunction):
         """Optional[str]: Field name used as re-ranking input."""
         return self._rerank_field
 
-    def _to_cpp_params(self):
-        """QwenReRanker is a Python/API-based reranker, not a C++ strategy."""
-        raise NotImplementedError(
-            "QwenReRanker does not support C++ rerank; it runs in the Python path."
-        )
-
     @property
     def query(self) -> str:
         """str: Query text used for semantic re-ranking."""

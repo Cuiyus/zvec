@@ -30,10 +30,9 @@ class RerankFunction(ABC):
     Each subclass also provides a standalone rerank() implementation.
     """
 
-    @abstractmethod
     def _to_cpp_params(self):
-        """Convert to C++ params object (_RrfParams | _WeightedParams | _CallbackParams)."""
-        ...
+        """Return C++ reranker params. Override in subclasses that use C++ path."""
+        raise NotImplementedError
 
     @abstractmethod
     def rerank(
