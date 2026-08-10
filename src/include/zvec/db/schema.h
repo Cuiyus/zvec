@@ -317,6 +317,10 @@ class ZVEC_API CollectionSchema {
     return *this;
   }
 
+  CollectionSchema(CollectionSchema &&) noexcept = default;
+
+  CollectionSchema &operator=(CollectionSchema &&) noexcept = default;
+
  public:
   std::string to_string() const;
 

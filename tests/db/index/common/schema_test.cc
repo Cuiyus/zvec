@@ -725,6 +725,48 @@ TEST(CollectionSchemaTest, CopyConstructor) {
   EXPECT_EQ(copy.max_doc_count_per_segment(), 100000u);
 }
 
+TEST(CollectionSchemaTest, MoveConstructor) {
+  CollectionSchema original("original_schema", {});
+  auto field = std::make_shared<FieldSchema>("field", DataType::STRING);
+  ASSERT_TRUE(original.add_field(field).ok());
+  original.set_max_doc_count_per_segment(100000);
+  auto original_field = original.get_field_ptr("field");
+
+  CollectionSchema moved(std::move(original));
+
+  EXPECT_EQ(moved.name(), "original_schema");
+  ASSERT_EQ(moved.fields().size(), 1);
+  EXPECT_TRUE(moved.has_field("field"));
+  EXPECT_EQ(moved.max_doc_count_per_segment(), 100000u);
+  EXPECT_EQ(moved.get_field_ptr("field"), original_field);
+}
+
+TEST(CollectionSchemaTest, MoveAssignment) {
+  CollectionSchema original("original_schema", {});
+  auto first = std::make_shared<FieldSchema>("first", DataType::STRING);
+  auto second = std::make_shared<FieldSchema>("second", DataType::INT64);
+  ASSERT_TRUE(original.add_field(first).ok());
+  ASSERT_TRUE(original.add_field(second).ok());
+  original.set_max_doc_count_per_segment(100000);
+  auto original_first = original.get_field_ptr("first");
+  auto original_second = original.get_field_ptr("second");
+
+  CollectionSchema destination("destination", {});
+  ASSERT_TRUE(
+      destination
+          .add_field(std::make_shared<FieldSchema>("stale", DataType::BOOL))
+          .ok());
+
+  destination = std::move(original);
+
+  EXPECT_EQ(destination.name(), "original_schema");
+  ASSERT_EQ(destination.fields().size(), 2);
+  EXPECT_FALSE(destination.has_field("stale"));
+  EXPECT_EQ(destination.max_doc_count_per_segment(), 100000u);
+  EXPECT_EQ(destination.get_field_ptr("first"), original_first);
+  EXPECT_EQ(destination.get_field_ptr("second"), original_second);
+}
+
 TEST(CollectionSchemaTest, Validate) {
   CollectionSchema original("original_schema", {});
   auto field =
