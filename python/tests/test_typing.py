@@ -104,6 +104,7 @@ def test_data_type_has_member(member):
         "HNSW_RABITQ",
         "DISKANN",
         "VAMANA",
+        "IVF_RABITQ",
         "INVERT",
         "FTS",
     ],
@@ -117,7 +118,7 @@ def test_io_backend_type_has_member(member):
     assert member in IOBackendType.__members__
 
 
-@pytest.mark.parametrize("member", ["FP16", "INT8", "INT4", "UNDEFINED"])
+@pytest.mark.parametrize("member", ["FP16", "INT8", "INT4", "RABITQ", "UNDEFINED"])
 def test_quantize_type_has_member(member):
     assert member in QuantizeType.__members__
 
