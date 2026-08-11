@@ -62,6 +62,20 @@ class Collection:
         self._schema = None
         self._querier = None
 
+    def close(self) -> None:
+        """Close the collection and release its native resources.
+
+        Flushes pending writes and releases the collection's file lock so the
+        path can be reopened or removed, even if other references to this
+        collection still exist. Closing an already-closed collection is a
+        no-op.
+        """
+        if self._obj is not None:
+            self._obj.Close()
+        self._obj = None
+        self._schema = None
+        self._querier = None
+
     @classmethod
     def _from_core(cls, core_collection: _Collection) -> Collection:
         if not core_collection:
