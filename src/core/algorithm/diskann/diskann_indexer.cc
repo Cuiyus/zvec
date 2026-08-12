@@ -1011,7 +1011,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
       group_topk_heap.limit(ctx->group_topk());
     }
 
-    topk_heap.emplace(id, info);
+    group_topk_heap.emplace(id, info);
   }
 
   // stage 2, expand to reach group num as possible
@@ -1135,7 +1135,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
             group_topk_heap.limit(ctx->group_topk());
           }
 
-          group_topk_heap.emplace_back(
+          group_topk_heap.emplace(
               std::get<0>(cached_neighbor),
               VectorInfo(cur_expanded_dist,
                          make_vector_copy(node_fp_coords_copy)));
@@ -1189,7 +1189,7 @@ int DiskAnnIndexer::cached_beam_search_by_group(DiskAnnContext *ctx) {
             group_topk_heap.limit(ctx->group_topk());
           }
 
-          group_topk_heap.emplace_back(
+          group_topk_heap.emplace(
               frontier_neighbor.first,
               VectorInfo(cur_expanded_dist, make_vector_copy(data_buf)));
 
