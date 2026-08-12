@@ -329,7 +329,7 @@ void ZVecPyDoc::bind_doc(py::module_ &m) {
               switch (field_meta->data_type()) {
                 // base datatypes
                 case DataType::STRING:
-                  return py::str(self.get<std::string>(field).value());
+                  return py::str(self.get_ref<std::string>(field));
                 case DataType::BOOL:
                   return py::cast(self.get<bool>(field));
                 case DataType::INT32:
@@ -347,21 +347,22 @@ void ZVecPyDoc::bind_doc(py::module_ &m) {
 
                 // array datatypes
                 case DataType::ARRAY_STRING:
-                  return py::cast(self.get<std::vector<std::string>>(field));
+                  return py::cast(
+                      self.get_ref<std::vector<std::string>>(field));
                 case DataType::ARRAY_INT32:
-                  return py::cast(self.get<std::vector<int32_t>>(field));
+                  return py::cast(self.get_ref<std::vector<int32_t>>(field));
                 case DataType::ARRAY_INT64:
-                  return py::cast(self.get<std::vector<int64_t>>(field));
+                  return py::cast(self.get_ref<std::vector<int64_t>>(field));
                 case DataType::ARRAY_UINT32:
-                  return py::cast(self.get<std::vector<uint32_t>>(field));
+                  return py::cast(self.get_ref<std::vector<uint32_t>>(field));
                 case DataType::ARRAY_UINT64:
-                  return py::cast(self.get<std::vector<uint64_t>>(field));
+                  return py::cast(self.get_ref<std::vector<uint64_t>>(field));
                 case DataType::ARRAY_FLOAT:
-                  return py::cast(self.get<std::vector<float>>(field));
+                  return py::cast(self.get_ref<std::vector<float>>(field));
                 case DataType::ARRAY_DOUBLE:
-                  return py::cast(self.get<std::vector<double>>(field));
+                  return py::cast(self.get_ref<std::vector<double>>(field));
                 case DataType::ARRAY_BOOL:
-                  return py::cast(self.get<std::vector<bool>>(field));
+                  return py::cast(self.get_ref<std::vector<bool>>(field));
                 default:
                   throw py::type_error("Unsupported type for field: " + field);
               }
@@ -386,29 +387,27 @@ void ZVecPyDoc::bind_doc(py::module_ &m) {
             auto array = [&]() -> py::object {
               switch (vec_meta->data_type()) {
                 case DataType::VECTOR_INT8:
-                  return py::cast(self.get<std::vector<int8_t>>(vec));
+                  return py::cast(self.get_ref<std::vector<int8_t>>(vec));
                 case DataType::VECTOR_FP16: {
-                  auto value = self.get<std::vector<ailego::Float16>>(vec);
-                  if (value.has_value()) {
-                    std::vector<float> new_value;
-                    new_value.reserve(value.value().size());
-                    for (auto &item : value.value()) {
-                      new_value.push_back(static_cast<float>(item));
-                    }
-                    return py::cast(new_value);
+                  const auto &value =
+                      self.get_ref<std::vector<ailego::Float16>>(vec);
+                  std::vector<float> new_value;
+                  new_value.reserve(value.size());
+                  for (const auto &item : value) {
+                    new_value.push_back(static_cast<float>(item));
                   }
-                  return py::none();
+                  return py::cast(new_value);
                 }
                 case DataType::VECTOR_FP32:
-                  return py::cast(self.get<std::vector<float>>(vec));
+                  return py::cast(self.get_ref<std::vector<float>>(vec));
                 case DataType::VECTOR_FP64:
-                  return py::cast(self.get<std::vector<double>>(vec));
+                  return py::cast(self.get_ref<std::vector<double>>(vec));
                 case DataType::SPARSE_VECTOR_FP16: {
-                  auto vector =
-                      self.get<std::pair<std::vector<uint32_t>,
-                                         std::vector<ailego::Float16>>>(vec);
-                  const auto &indices = vector->first;
-                  const auto &values = vector->second;
+                  using SparseVector = std::pair<std::vector<uint32_t>,
+                                                 std::vector<ailego::Float16>>;
+                  const auto &vector = self.get_ref<SparseVector>(vec);
+                  const auto &indices = vector.first;
+                  const auto &values = vector.second;
                   py::dict d;
                   for (size_t i = 0; i < indices.size(); ++i) {
                     d[py::int_(indices[i])] =
@@ -417,11 +416,11 @@ void ZVecPyDoc::bind_doc(py::module_ &m) {
                   return d;
                 }
                 case DataType::SPARSE_VECTOR_FP32: {
-                  auto vector = self.get<
-                      std::pair<std::vector<uint32_t>, std::vector<float>>>(
-                      vec);
-                  const auto &indices = vector->first;
-                  const auto &values = vector->second;
+                  using SparseVector =
+                      std::pair<std::vector<uint32_t>, std::vector<float>>;
+                  const auto &vector = self.get_ref<SparseVector>(vec);
+                  const auto &indices = vector.first;
+                  const auto &values = vector.second;
                   py::dict d;
                   for (size_t i = 0; i < indices.size(); ++i) {
                     d[py::int_(indices[i])] = py::float_(values[i]);
@@ -446,7 +445,6 @@ void ZVecPyDoc::bind_doc(py::module_ &m) {
       },
       py::arg("schema"),
       "Get all fields and vectors as a tuple: (id, score, fields, vectors). "
-      "Vectors are zero-copy numpy arrays (dense: ndarray, sparse: (indices, "
-      "values) tuple).");
+      "Container values are returned as owned Python containers.");
 }
 }  // namespace zvec

@@ -485,16 +485,16 @@ class TestConvertPyDoc:
         assert py_doc.field("marks") == [1000, 2000, 3000]
         assert py_doc.field("x") == [1, 2, 3]
         assert py_doc.field("y") == [100, 200, 300]
+        assert py_doc.field("scores") == pytest.approx([0.1, 0.2, 0.3])
+        assert py_doc.field("ratios") == pytest.approx([0.1, 0.2, 0.3])
+        assert py_doc.field("results") == [True, False, True]
 
-        scores = doc.get_any("scores", DataType.ARRAY_FLOAT)
-        for i in range(len(scores)):
-            assert math.isclose(scores[i], py_doc.field("scores")[i], rel_tol=1e-1)
-        ratios = doc.get_any("ratios", DataType.ARRAY_DOUBLE)
-        for i in range(len(ratios)):
-            assert math.isclose(ratios[i], py_doc.field("ratios")[i], rel_tol=1e-1)
-        results = doc.get_any("results", DataType.ARRAY_BOOL)
-        for i in range(len(results)):
-            assert results[i] == py_doc.field("results")[i]
+        # Materialization owns its Python containers; changing the native Doc
+        # afterwards must not mutate the returned snapshot.
+        doc.set_any("tags", schema.field("tags")._get_object(), ["changed"])
+        doc.set_any("scores", schema.field("scores")._get_object(), [9.0])
+        assert py_doc.field("tags") == ["tag1", "tag2", "tag3"]
+        assert py_doc.field("scores") == pytest.approx([0.1, 0.2, 0.3])
 
     def test_with_dense_vector_fields(self):
         schema = CollectionSchema(
@@ -515,6 +515,11 @@ class TestConvertPyDoc:
                     data_type=DataType.VECTOR_INT8,
                     dimension=32,
                 ),
+                VectorSchema(
+                    name="precise",
+                    data_type=DataType.VECTOR_FP64,
+                    dimension=2,
+                ),
             ],
         )
 
@@ -523,28 +528,23 @@ class TestConvertPyDoc:
         doc.set_any("embedding", schema.vector("embedding")._get_object(), [1.1] * 4)
         doc.set_any("image", schema.vector("image")._get_object(), [2.2] * 8)
         doc.set_any("text", schema.vector("text")._get_object(), [4] * 32)
+        doc.set_any("precise", schema.vector("precise")._get_object(), [3.3, 4.4])
 
         py_doc = convert_to_py_doc(doc, schema)
         assert py_doc.id == "1"
 
         embedding_vector = py_doc.vector("embedding")
-        assert len(embedding_vector) == 4
-        for i in range(4):
-            assert math.isclose(
-                py_doc.vector("embedding")[i], embedding_vector[i], rel_tol=1e-1
-            )
+        assert embedding_vector == pytest.approx([1.1] * 4, rel=1e-3)
 
         image_vector = py_doc.vector("image")
-        assert len(image_vector) == 8
-        for i in range(8):
-            assert math.isclose(
-                py_doc.vector("image")[i], image_vector[i], rel_tol=1e-1
-            )
+        assert image_vector == pytest.approx([2.2] * 8, rel=1e-6)
 
         text_vector = py_doc.vector("text")
-        assert len(text_vector) == 32
-        for i in range(32):
-            assert py_doc.vector("text")[i] == text_vector[i]
+        assert text_vector == [4] * 32
+        assert py_doc.vector("precise") == pytest.approx([3.3, 4.4], rel=1e-12)
+
+        doc.set_any("image", schema.vector("image")._get_object(), [9.0] * 8)
+        assert py_doc.vector("image") == pytest.approx([2.2] * 8, rel=1e-6)
 
     def test_with_sparse_vector_fields(self):
         schema = CollectionSchema(
@@ -575,10 +575,13 @@ class TestConvertPyDoc:
 
         author_vector = py_doc.vector("author")
         assert isinstance(author_vector, dict)
-        for key, value in doc.get_any("author", DataType.SPARSE_VECTOR_FP32).items():
-            assert math.isclose(author_vector[key], value, rel_tol=1e-1)
+        assert author_vector == pytest.approx({1: 1.1, 2: 2.2, 3: 3.3}, rel=1e-6)
 
         content_vector = py_doc.vector("content")
         assert isinstance(content_vector, dict)
-        for key, value in doc.get_any("content", DataType.SPARSE_VECTOR_FP16).items():
-            assert math.isclose(content_vector[key], value, rel_tol=1e-1)
+        assert content_vector == pytest.approx({4: 4.4, 5: 5.5, 6: 6.6}, rel=1e-3)
+
+        doc.set_any("author", schema.vector("author")._get_object(), {9: 9.0})
+        assert py_doc.vector("author") == pytest.approx(
+            {1: 1.1, 2: 2.2, 3: 3.3}, rel=1e-6
+        )
