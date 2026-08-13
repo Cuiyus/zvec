@@ -12,24 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "quantizer/fp32_quantizer/fp32_quantizer.h"
+#include "quantizer/fp16_quantizer/fp16_quantizer.h"
 #include <cmath>
 #include <cstring>
 #include <vector>
 #include <ailego/math/normalizer.h>
-#include <zvec/ailego/logger/logger.h>
+#include <zvec/ailego/utility/float_helper.h>
 #include <zvec/core/framework/index_factory.h>
-#include "core/quantizer/record_quantizer.h"
 
 namespace zvec {
 namespace turbo {
 
-int Fp32Quantizer::init(const IndexMeta &meta,
+int Fp16Quantizer::init(const IndexMeta &meta,
                         const ailego::Params & /*params*/) {
   meta_ = meta;
 
-  meta_.set_meta(IndexMeta::DataType::DT_FP32, meta.dimension());
-
+  meta_.set_meta(IndexMeta::DataType::DT_FP16, meta.dimension());
 
   original_dim_ = meta.dimension();
   auto metric_name = meta.metric_name();
@@ -40,10 +38,10 @@ int Fp32Quantizer::init(const IndexMeta &meta,
 
   // Cache the distance dispatch for the new Quantizer interface.
   auto kernels =
-      get_distance_kernels(metric_from_name(metric_name), DataType::kFp32,
-                           QuantizeType::kFp32, CpuArchType::kAuto);
+      get_distance_kernels(metric_from_name(metric_name), DataType::kFp16,
+                           QuantizeType::kFp16, CpuArchType::kAuto);
   if (!kernels.dist || !kernels.batch) {
-    LOG_ERROR("Unsupported metric %s for FP32 quantizer", metric_name.c_str());
+    LOG_ERROR("Unsupported metric %s for FP16 quantizer", metric_name.c_str());
     return kErrUnsupported;
   }
   dp_query_func_ = std::move(kernels.dist);
@@ -52,68 +50,73 @@ int Fp32Quantizer::init(const IndexMeta &meta,
   return 0;
 }
 
-int Fp32Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
+int Fp16Quantizer::quantize(const void *query, const IndexQueryMeta &qmeta,
                             std::string *out, IndexQueryMeta *ometa) const {
   if (qmeta.unit_size() != sizeof(float)) {
     return kErrUnsupported;
   }
 
   // qmeta.dimension() may be the inflated (data + extras) dimension when the
-  // caller uses meta_.dimension() directly (e.g. HnswDistCalculator). Use the
-  // raw original dim we recorded at init() to avoid over-reading the query.
+  // caller uses meta_.dimension() directly. Use the raw original dim we
+  // recorded at init() to avoid over-reading the query.
   size_t raw_dim = (original_dim_ != 0 && qmeta.dimension() >= original_dim_)
                        ? original_dim_
                        : qmeta.dimension();
-  size_t byte_size = raw_dim * sizeof(float) + extra_meta_size_;
+  size_t byte_size = raw_dim * sizeof(uint16_t) + extra_meta_size_;
   out->resize(byte_size);
+  uint16_t *out_buf = reinterpret_cast<uint16_t *>(&(*out)[0]);
 
   if (meta_.metric_name() == "Cosine") {
-    // L2-normalize the vector in-place and store the norm at the end so the
-    // original vector can be reconstructed during dequantize.
-    float *buf = reinterpret_cast<float *>(&(*out)[0]);
-    std::memcpy(buf, query, raw_dim * sizeof(float));
+    // L2-normalize the vector before converting to fp16 and store the norm
+    // at the end so the original vector can be reconstructed during
+    // dequantize.
+    std::vector<float> buf(raw_dim);
+    std::memcpy(buf.data(), query, raw_dim * sizeof(float));
     float norm = 0.0f;
-    ailego::Normalizer<float>::L2(buf, raw_dim, &norm);
+    ailego::Normalizer<float>::L2(buf.data(), raw_dim, &norm);
+    ailego::FloatHelper::ToFP16(buf.data(), raw_dim, out_buf);
     std::memcpy(
-        reinterpret_cast<uint8_t *>(&(*out)[0]) + raw_dim * sizeof(float),
+        reinterpret_cast<uint8_t *>(&(*out)[0]) + raw_dim * sizeof(uint16_t),
         &norm, extra_meta_size_);
   } else {
-    std::memcpy(&(*out)[0], query, byte_size);
+    ailego::FloatHelper::ToFP16(reinterpret_cast<const float *>(query), raw_dim,
+                                out_buf);
   }
 
   *ometa = qmeta;
-  ometa->set_meta(IndexMeta::DataType::DT_FP32, raw_dim,
+  ometa->set_meta(IndexMeta::DataType::DT_FP16, raw_dim,
                   static_cast<uint32_t>(type_), extra_meta_size_);
 
   return 0;
 }
 
-int Fp32Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
+int Fp16Quantizer::dequantize(const void *in, const IndexQueryMeta &qmeta,
                               std::string *out) const {
   size_t raw_dim = (original_dim_ != 0 && qmeta.dimension() >= original_dim_)
                        ? original_dim_
                        : qmeta.dimension();
   size_t byte_size = raw_dim * sizeof(float);
 
+  out->resize(byte_size);
+  const uint16_t *in_buf = reinterpret_cast<const uint16_t *>(in);
+  float *out_buf = reinterpret_cast<float *>(&(*out)[0]);
+  ailego::FloatHelper::ToFP32(in_buf, raw_dim, out_buf);
+
   if (meta_.metric_name() == "Cosine") {
     // Denormalize the vector using the stored norm.
-    out->resize(byte_size);
-    const float *in_buf = reinterpret_cast<const float *>(in);
-    float *out_buf = reinterpret_cast<float *>(&(*out)[0]);
     float norm = 0.0f;
-    std::memcpy(&norm, reinterpret_cast<const uint8_t *>(in) + byte_size,
-                extra_meta_size_);
+    std::memcpy(
+        &norm,
+        reinterpret_cast<const uint8_t *>(in) + raw_dim * sizeof(uint16_t),
+        extra_meta_size_);
     for (size_t i = 0; i < raw_dim; ++i) {
-      out_buf[i] = in_buf[i] * norm;
+      out_buf[i] *= norm;
     }
-  } else {
-    out->resize(byte_size);
-    std::memcpy(out->data(), in, byte_size);
   }
   return 0;
 }
 
-DistanceImpl Fp32Quantizer::distance(const void *query,
+DistanceImpl Fp16Quantizer::distance(const void *query,
                                      const IndexQueryMeta &qmeta) const {
   // Reuse the dispatch cached at init().
   if (!dp_query_func_) {
@@ -127,23 +130,26 @@ DistanceImpl Fp32Quantizer::distance(const void *query,
                       std::move(quantized_query), original_dim_);
 }
 
-void Fp32Quantizer::quantize_one(const void *input, void *output) const {
-  size_t byte_size = static_cast<size_t>(original_dim_) * sizeof(float);
+void Fp16Quantizer::quantize_one(const void *input, void *output) const {
+  uint16_t *out_buf = reinterpret_cast<uint16_t *>(output);
 
   if (meta_.metric_name() == "Cosine") {
-    // L2-normalize and store the norm at the end.
-    std::memcpy(output, input, byte_size);
-    float *buf = reinterpret_cast<float *>(output);
+    // L2-normalize before converting and store the norm at the end.
+    std::vector<float> buf(original_dim_);
+    std::memcpy(buf.data(), input, original_dim_ * sizeof(float));
     float norm = 0.0f;
-    ailego::Normalizer<float>::L2(buf, original_dim_, &norm);
-    std::memcpy(reinterpret_cast<uint8_t *>(output) + byte_size, &norm,
-                extra_meta_size_);
+    ailego::Normalizer<float>::L2(buf.data(), original_dim_, &norm);
+    ailego::FloatHelper::ToFP16(buf.data(), original_dim_, out_buf);
+    std::memcpy(reinterpret_cast<uint8_t *>(output) +
+                    static_cast<size_t>(original_dim_) * sizeof(uint16_t),
+                &norm, extra_meta_size_);
   } else {
-    std::memcpy(output, input, byte_size);
+    ailego::FloatHelper::ToFP16(reinterpret_cast<const float *>(input),
+                                original_dim_, out_buf);
   }
 }
 
-float Fp32Quantizer::calc_distance_dp_query(const void *dp,
+float Fp16Quantizer::calc_distance_dp_query(const void *dp,
                                             const void *query) const {
   float d = 0.0f;
   if (dp_query_func_) {
@@ -152,7 +158,7 @@ float Fp32Quantizer::calc_distance_dp_query(const void *dp,
   return d;
 }
 
-void Fp32Quantizer::calc_distance_dp_query_batch(const void *const *dp_list,
+void Fp16Quantizer::calc_distance_dp_query_batch(const void *const *dp_list,
                                                  int dp_num, const void *query,
                                                  float *dist_list) const {
   if (dp_query_batch_func_) {
@@ -165,14 +171,14 @@ void Fp32Quantizer::calc_distance_dp_query_batch(const void *const *dp_list,
   }
 }
 
-float Fp32Quantizer::calc_distance_dp_query_unquantized(
+float Fp16Quantizer::calc_distance_dp_query_unquantized(
     const void *dp, const void *query) const {
   std::string buf(quantized_length(), '\0');
   quantize_one(query, &buf[0]);
   return calc_distance_dp_query(dp, buf.data());
 }
 
-void Fp32Quantizer::calc_distance_dp_query_batch_unquantized(
+void Fp16Quantizer::calc_distance_dp_query_batch_unquantized(
     const void *const *dp_list, int dp_num, const void *query,
     float *dist_list) const {
   std::string buf(quantized_length(), '\0');
@@ -180,12 +186,12 @@ void Fp32Quantizer::calc_distance_dp_query_batch_unquantized(
   calc_distance_dp_query_batch(dp_list, dp_num, buf.data(), dist_list);
 }
 
-float Fp32Quantizer::calc_distance_dp_dp(const void *dp1,
+float Fp16Quantizer::calc_distance_dp_dp(const void *dp1,
                                          const void *dp2) const {
   return calc_distance_dp_query(dp1, dp2);
 }
 
-INDEX_FACTORY_REGISTER_QUANTIZER(Fp32Quantizer);
+INDEX_FACTORY_REGISTER_QUANTIZER(Fp16Quantizer);
 
 }  // namespace turbo
 }  // namespace zvec

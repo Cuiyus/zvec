@@ -25,11 +25,11 @@ namespace turbo {
 
 using namespace zvec::core;
 
-class Fp32Quantizer : public Quantizer {
+class Fp16Quantizer : public Quantizer {
  public:
-  Fp32Quantizer() : Quantizer(QuantizeType::kFp32) {}
+  Fp16Quantizer() : Quantizer(QuantizeType::kFp16) {}
 
-  virtual ~Fp32Quantizer() {}
+  virtual ~Fp16Quantizer() {}
 
  public:
   int init(const core::IndexMeta &meta, const ailego::Params &params) override;
@@ -100,9 +100,9 @@ class Fp32Quantizer : public Quantizer {
                         const core::IndexQueryMeta &qmeta) const override;
 
  private:
-  //! Byte length of a quantized vector (raw fp32 data + extra meta).
+  //! Byte length of a quantized vector (fp16 data + extra meta).
   size_t quantized_length() const {
-    return static_cast<size_t>(original_dim_) * sizeof(float) +
+    return static_cast<size_t>(original_dim_) * sizeof(uint16_t) +
            extra_meta_size_;
   }
 
@@ -119,7 +119,6 @@ class Fp32Quantizer : public Quantizer {
   DistanceFunc dp_query_func_{};
   BatchDistanceFunc dp_query_batch_func_{};
 };
-
 
 }  // namespace turbo
 }  // namespace zvec
