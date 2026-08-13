@@ -63,10 +63,46 @@ using RotateFunc = void (*)(const float *in, float *out, size_t in_dim,
 using UnrotateFunc = void (*)(const float *in, float *out, size_t in_dim,
                               size_t out_dim, void *ctx);
 
+// Codebook kernel function pointer types (shared by all codebook-based
+// quantizers, e.g. int8/int4 PQ).
+//
+// Asymmetric (ADC): LUT look-up distance between a code and a query LUT.
+//   code:              [num_chunk] code ids
+//   lut:               [num_chunk * num_centroids] float
+// Uses void* to match DistanceFunc signature for direct assignment.
+using CodebookAsymmetricDistanceFunc = void (*)(const void *code,
+                                                const void *lut,
+                                                size_t num_chunk, float *out);
+
+// Symmetric (SDC): centroid-to-centroid distance between two codes.
+//   a, b:              [num_chunk] code ids
+//   dist_table:        [num_chunk * num_centroids * num_centroids] float
+// Uses void* for consistency with DistanceFunc /
+// CodebookAsymmetricDistanceFunc.
+using CodebookSymmetricDistanceFunc = void (*)(const void *a, const void *b,
+                                               const void *dist_table,
+                                               size_t num_chunk, float *out);
+
+// Batch asymmetric: distances for multiple codes against a shared LUT.
+// Signature matches BatchDistanceFunc for direct assignment (no lambda).
+using CodebookBatchAsymmetricDistanceFunc = void (*)(const void **codes,
+                                                     const void *lut,
+                                                     size_t num,
+                                                     size_t num_chunk,
+                                                     float *out);
+
 // ISA-dispatched rotate/unrotate kernels.
 struct RotatorKernels {
   RotateFunc rotate = nullptr;
   UnrotateFunc unrotate = nullptr;
+};
+
+// data_type selects the code packing layout:
+//   kInt8: one uint8 per chunk (256 centroids, stride=256)
+struct CodebookKernels {
+  CodebookAsymmetricDistanceFunc asymmetric_distance = nullptr;
+  CodebookSymmetricDistanceFunc symmetric_distance = nullptr;
+  CodebookBatchAsymmetricDistanceFunc batch_asymmetric_distance = nullptr;
 };
 
 enum class MetricType {
@@ -140,5 +176,11 @@ get_uniform_quantize_func(DataType data_type);
 // Returns rotator kernels dispatched for the current CPU.
 RotatorKernels get_rotator_kernels(
     RotateType rotate_type, CpuArchType cpu_arch_type = CpuArchType::kAuto);
+
+// Returns all PQ kernels dispatched for the given data_type, quantize_type
+// and CPU arch.
+CodebookKernels get_pq_kernels(DataType data_type,
+                               QuantizeType quantize_type = QuantizeType::kPQ,
+                               CpuArchType cpu_arch_type = CpuArchType::kAuto);
 
 }  // namespace zvec::turbo
