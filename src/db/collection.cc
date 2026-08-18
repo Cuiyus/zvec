@@ -14,11 +14,14 @@
 
 #include <atomic>
 #include <cstdint>
+#include <filesystem>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <set>
 #include <shared_mutex>
 #include <string>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 #include <ailego/io/file_lock.h>
@@ -148,6 +151,8 @@ class CollectionImpl : public Collection {
   Status create_idmap_and_delete_store();
 
   Status recover_idmap_and_delete_store();
+
+  void cleanup_orphan_segment_dirs(const Version &version);
 
   Status acquire_file_lock(bool create = false);
 
@@ -1934,6 +1939,13 @@ Status CollectionImpl::recovery() {
 
   auto segment_metas = v.persisted_segment_metas();
 
+  // Remove crash-leftover segment dirs before opening segments; safe
+  // under the exclusive file lock held above. Read-only opens hold only
+  // a shared lock and must not modify the collection.
+  if (!options_.read_only_) {
+    cleanup_orphan_segment_dirs(v);
+  }
+
   SegmentOptions seg_options;
   seg_options.read_only_ = true;
   seg_options.enable_mmap_ = options_.enable_mmap_;
@@ -1988,6 +2000,95 @@ Status CollectionImpl::recover_idmap_and_delete_store() {
   }
 
   return Status::OK();
+}
+
+// Removes segment directories that `version` does not reference: numeric
+// directories absent from the persisted set and the writing segment, plus
+// `<id>.tmp` compact outputs that were never renamed. Best-effort: a
+// directory that cannot be removed is only logged, since it is no worse
+// than the leftover itself. Must be called with the exclusive collection
+// file lock held.
+void CollectionImpl::cleanup_orphan_segment_dirs(const Version &version) {
+  std::unordered_set<SegmentID> referenced_ids;
+  for (auto &meta : version.persisted_segment_metas()) {
+    referenced_ids.insert(meta->id());
+  }
+  if (version.writing_segment_meta()) {
+    referenced_ids.insert(version.writing_segment_meta()->id());
+  }
+
+  // A name counts as a segment id only if it round-trips through the id
+  // formatting (all digits, no leading zeros, fits SegmentID); anything
+  // else was not created by the collection and is left untouched.
+  auto parse_segment_id = [](const std::string &name, SegmentID *id) {
+    if (name.empty() || name.size() > 10) {
+      return false;
+    }
+    uint64_t value = 0;
+    for (char c : name) {
+      if (c < '0' || c > '9') {
+        return false;
+      }
+      value = value * 10 + (c - '0');
+    }
+    if (value > std::numeric_limits<SegmentID>::max() ||
+        std::to_string(value) != name) {
+      return false;
+    }
+    *id = static_cast<SegmentID>(value);
+    return true;
+  };
+
+  // Collect candidates first and remove them after the scan: deleting an
+  // entry while iterating a directory is implementation-defined, and this
+  // matches the CleanupDirectory precedent.
+  std::vector<std::string> orphan_names;
+  std::error_code ec;
+  std::filesystem::directory_iterator it(
+      ailego::FileHelper::PathFromUtf8(path_), ec);
+  std::filesystem::directory_iterator end;
+  while (!ec && it != end) {
+    std::error_code entry_ec;
+    if (it->is_directory(entry_ec) && !entry_ec) {
+      const std::string name =
+          ailego::FileHelper::PathToUtf8(it->path().filename());
+
+      std::string stem = name;
+      bool is_tmp = false;
+      if (name.size() > 4 && name.compare(name.size() - 4, 4, ".tmp") == 0) {
+        stem = name.substr(0, name.size() - 4);
+        is_tmp = true;
+      }
+
+      SegmentID segment_id = 0;
+      if (parse_segment_id(stem, &segment_id) &&
+          (is_tmp || referenced_ids.count(segment_id) == 0)) {
+        orphan_names.push_back(name);
+      }
+    }
+    it.increment(ec);
+  }
+  if (ec) {
+    LOG_WARN("Failed to list collection directory for orphan cleanup: %s",
+             ec.message().c_str());
+    return;
+  }
+
+  for (const auto &name : orphan_names) {
+    auto orphan_path = ailego::FileHelper::PathJoin(path_, name);
+    if (FileHelper::RemoveDirectory(orphan_path)) {
+      LOG_WARN(
+          "Recovery removed orphan segment directory not referenced by "
+          "manifest: path=%s",
+          orphan_path.c_str());
+    } else {
+      const auto error = ailego::FileHelper::GetLastErrorString();
+      LOG_WARN(
+          "Recovery failed to remove orphan segment directory not referenced "
+          "by manifest: path=%s, error=%s",
+          orphan_path.c_str(), error.c_str());
+    }
+  }
 }
 
 Status CollectionImpl::create() {

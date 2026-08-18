@@ -35,6 +35,7 @@
 #include <zvec/ailego/utility/file_helper.h>
 #include "db/common/file_helper.h"
 #include "db/index/common/type_helper.h"
+#include "db/index/common/version_manager.h"
 #include "index/utils/utils.h"
 #include "zvec/ailego/utility/float_helper.h"
 #include "zvec/db/doc.h"
@@ -3162,6 +3163,107 @@ TEST_F(CollectionTest, Feature_Optimize_Superseded_Index_File_Removed) {
     ASSERT_NE(doc, nullptr);
     ASSERT_EQ(*doc, expect_doc);
   }
+}
+
+TEST_F(CollectionTest, Feature_Recovery_Orphan_Segment_Dirs_Removed) {
+  namespace fs = std::filesystem;
+  int doc_count = 1000;
+
+  auto schema = TestHelper::CreateSchemaWithVectorIndex();
+  auto options = CollectionOptions{false, true, 64 * 1024 * 1024};
+  auto collection = TestHelper::CreateCollectionWithDoc(
+      col_path, *schema, options, 0, doc_count, false);
+  ASSERT_NE(collection, nullptr);
+  ASSERT_TRUE(collection->Flush().ok());
+
+  // Optimize persists the first batch, then a second batch refills the
+  // writing segment so the next Optimize switches it again.
+  ASSERT_TRUE(collection->Optimize(OptimizeOptions{0}).ok());
+  ASSERT_TRUE(
+      TestHelper::CollectionInsertDoc(collection, doc_count, 2 * doc_count)
+          .ok());
+  ASSERT_TRUE(collection->Flush().ok());
+  collection.reset();
+
+  // Read the manifest to learn the referenced segment ids and the id the
+  // recovered allocator will hand out next.
+  auto version_manager = VersionManager::Recovery(col_path);
+  ASSERT_TRUE(version_manager.has_value());
+  auto version = version_manager.value()->get_current_version();
+  auto next_id = version.next_segment_id();
+  std::vector<SegmentID> referenced_ids;
+  for (auto &meta : version.persisted_segment_metas()) {
+    referenced_ids.push_back(meta->id());
+  }
+  referenced_ids.push_back(version.writing_segment_meta()->id());
+
+  // Fake the leftovers of an Optimize that crashed after renaming its
+  // output directory but before the commit phase flushed the manifest.
+  auto orphan_next = FileHelper::MakeSegmentPath(col_path, next_id);
+  auto orphan_far = FileHelper::MakeSegmentPath(col_path, next_id + 100);
+  auto orphan_tmp = FileHelper::MakeTempSegmentPath(col_path, 123);
+  for (const auto &dir : {orphan_next, orphan_far, orphan_tmp}) {
+    ASSERT_FALSE(fs::exists(dir));
+    ASSERT_TRUE(fs::create_directories(dir));
+    std::ofstream((fs::path(dir) / "dummy.data").string()) << "orphan";
+  }
+  // Not canonical segment directory names; must never be touched.
+  auto non_segment_dir = (fs::path(col_path) / "007").string();
+  auto dot_tmp_dir = (fs::path(col_path) / ".tmp").string();
+  auto bad_suffix_dir = (fs::path(col_path) / "5.tmpx").string();
+  for (const auto &dir : {non_segment_dir, dot_tmp_dir, bad_suffix_dir}) {
+    ASSERT_TRUE(fs::create_directories(dir));
+  }
+
+  // A read-only open holds only a shared file lock and must not delete
+  // anything.
+  {
+    auto ro_options = CollectionOptions{true, true, 64 * 1024 * 1024};
+    auto ro_result = Collection::Open(col_path, ro_options);
+    ASSERT_TRUE(ro_result.has_value());
+    for (const auto &dir : {orphan_next, orphan_far, orphan_tmp}) {
+      ASSERT_TRUE(fs::exists(dir));
+    }
+  }
+
+  // A read-write open holds the exclusive file lock and removes every
+  // unreferenced segment directory and tmp residue.
+  auto result = Collection::Open(col_path, options);
+  ASSERT_TRUE(result.has_value());
+  collection = std::move(result.value());
+  for (const auto &dir : {orphan_next, orphan_far, orphan_tmp}) {
+    ASSERT_FALSE(fs::exists(dir));
+  }
+  for (const auto &dir : {non_segment_dir, dot_tmp_dir, bad_suffix_dir}) {
+    ASSERT_TRUE(fs::exists(dir));
+  }
+  for (auto id : referenced_ids) {
+    ASSERT_TRUE(fs::exists(FileHelper::MakeSegmentPath(col_path, id)));
+  }
+
+  // Without the cleanup this fails: the writing-segment switch allocates
+  // next_id and finds the orphaned directory already on disk.
+  ASSERT_TRUE(collection->Optimize(OptimizeOptions{0}).ok());
+
+  auto stats_result = collection->Stats();
+  ASSERT_TRUE(stats_result.has_value());
+  ASSERT_EQ(stats_result.value().doc_count, (uint64_t)(2 * doc_count));
+  for (int i : {0, doc_count - 1, doc_count, 2 * doc_count - 1}) {
+    auto expect_doc = TestHelper::CreateDoc(i, *schema);
+    auto fetched = collection->Fetch({expect_doc.pk()});
+    ASSERT_TRUE(fetched.has_value());
+    ASSERT_EQ(fetched.value().count(expect_doc.pk()), 1);
+    auto doc = fetched.value()[expect_doc.pk()];
+    ASSERT_NE(doc, nullptr);
+    ASSERT_EQ(*doc, expect_doc);
+  }
+
+  // A schema DDL switches the writing segment and allocates ids too;
+  // confirm it no longer collides with any leftover directory.
+  auto field_schema =
+      std::make_shared<FieldSchema>("add_int32", DataType::INT32, false);
+  ASSERT_TRUE(
+      collection->AddColumn(field_schema, "int32", AddColumnOptions()).ok());
 }
 
 TEST_F(CollectionTest, Feature_Optimize_Repeated) {
