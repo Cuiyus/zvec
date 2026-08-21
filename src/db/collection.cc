@@ -1053,6 +1053,14 @@ Status CollectionImpl::optimize(const OptimizeOptions &options) {
     }
   }
 
+  // segment_manager_->destroy_segment() / Segment::destroy() closes the retired
+  // segments while the task still hold the shared_ptr of them. Clear to drop
+  // the compaction snapshots after releasing the write_mtx so the segment
+  // destructors perform recursive directory cleanup without blocking readers
+  // and writers.
+  tasks.clear();
+  persist_segments.clear();
+
   return Status::OK();
 }
 
