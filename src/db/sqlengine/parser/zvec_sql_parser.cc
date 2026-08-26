@@ -219,8 +219,8 @@ Node::Ptr ZVecSQLParser::handle_logic_expr_node(VoidPtr node) {
   // order while bounding downstream recursive traversals to logarithmic depth.
   enum class BindType { ROOT, LEFT, RIGHT };
   struct BindTarget {
-    Node *parent{nullptr};
-    BindType bind_type{BindType::ROOT};
+    Node *parent;
+    BindType bind_type;
   };
   struct Frame {
     SQLParser::Logic_exprContext *node;
@@ -309,7 +309,8 @@ Node::Ptr ZVecSQLParser::handle_logic_expr_node(VoidPtr node) {
         continue;
       }
 
-      std::vector<BindTarget> operand_targets(operands.size());
+      std::vector<BindTarget> operand_targets(
+          operands.size(), BindTarget{nullptr, BindType::ROOT});
       std::function<void(size_t, size_t, Node *, BindType)>
           build_balanced_skeleton;
       build_balanced_skeleton = [&](size_t begin, size_t end, Node *parent,
